@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+#
+# All we want to do is to get Node.js installed, and copy frontdoor.js to the ~/local/scripts dir.
+#
+
+eval "$(cli-shezargs $@)"
+
+ip="$1"
+
+[[ -z $ip ]] && die "Need IP address"
+
+#sshix $ip 'mkdir -p local/scripts'
+
+bootstrap_script="$(realpath ${scripts_dir}/$(basename $0))"
+
