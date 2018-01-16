@@ -1,0 +1,72 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+wait_for_start() {
+  echo "wait for start |${1}| whoami"
+  while ! sshix -o ConnectTimeout=5 ${1} whoami; do
+    sleep 3
+    echo "wait for start |${1}| whoami"
+  done
+  sleep 3
+}
+
+
+# From: https://cloud-images.ubuntu.com/locator/ec2/
+# N.Virginia -- Search with 'us-east hvm ebs-ssd amd64 lts'
+#
+# This list fetched 01/10/2018
+#
+# us-east-1  xenial   16.04 LTS  amd64  hvm:ebs-ssd  20180109  ami-41e0b93b  hvm
+# us-east-1  trusty   14.04 LTS  amd64  hvm:ebs-ssd  20171208  ami-764a210c  hvm
+# us-east-1  precise  12.04 LTS  amd64  hvm:ebs-ssd  20170502  ami-a04529b6  hvm
+
+userdata_file="$(realpath ${scripts_dir}/data/userdata0)"
+userdata="$(base64 --wrap=0 $userdata_file)"
+
+#    --user-data               "$userdata" \
+#    --iam-instance-profile    "Arn=arn:aws:iam::084075158741:role/serverassist-web-instance-role" \
+
+rm -f /tmp/run-instance-result.json
+
+
+set +e
+
+for octet4 in 9 8 7 6 5 4
+do
+
+  aws ec2 run-instances \
+      --image-id                "ami-41e0b93b" \
+      --instance-type           "c5.xlarge" \
+      --key-name                "mario_demo" \
+      --security-group-ids      "sg-539cf02d" \
+      --iam-instance-profile    "Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO" \
+      --user-data               "file://${userdata_file}" \
+      --private-ip-address      "10.13.1.${octet4}" \
+      --subnet-id               "subnet-79cc7331" \
+      --count                   1 \
+        > /tmp/run-instance-result.json
+
+  result="$?"
+  echo $result
+  [[ $result == 0 ]] && break
+
+done
+
+set -e
+
+# Figure out what IP we ended up with
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
+
+cat /tmp/run-instance-result.json | jq '.'
+
+wait_for_start $ip
+
+${scripts_dir}/bootstrap --ip=$ip
+
+echo "To terminate:"
+echo "  aws ec2 terminate-instances --instance-ids $instance_id"
+
+
+

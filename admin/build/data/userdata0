@@ -1,0 +1,17 @@
+#!/bin/bash -ex
+
+if ! [ -d /home/scotty ]; then
+  usermod  -l scotty ubuntu
+  groupmod -n scotty ubuntu
+  usermod  -d /home/scotty -m scotty
+fi
+
+if [ -f /etc/sudoers.d/90-cloudimg-ubuntu ]; then
+  mv /etc/sudoers.d/90-cloudimg-ubuntu /etc/sudoers.d/90-cloud-init-users
+fi
+perl -pi -e 's/ubuntu/scotty/g;' /etc/sudoers.d/90-cloud-init-users
+
+if ! grep `hostname` /etc/hosts; then
+  echo \"127.0.0.1 `hostname`\" | sudo tee -a /etc/hosts
+fi
+

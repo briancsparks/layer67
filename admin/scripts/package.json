@@ -1,0 +1,9 @@
+{
+  "name": "frontdoor",
+  "version": "0.5.1",
+  "author": "Brian C Sparks",
+  "license": "MIT",
+  "dependencies": {
+    "sgsg": "^0.9.48"
+  }
+}

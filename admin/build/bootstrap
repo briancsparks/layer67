@@ -4,13 +4,98 @@
 # All we want to do is to get Node.js installed, and copy frontdoor.js to the ~/local/scripts dir.
 #
 
-eval "$(cli-shezargs $@)"
+# -----------------------------------------------------------------------
+# ---------- functions for when we are running on the instance ----------
+# -----------------------------------------------------------------------
 
-ip="$1"
+die() {
+  echo "$@" 1>&2
+  exit 1
+}
 
-[[ -z $ip ]] && die "Need IP address"
+set_env() {
+  # ----- /etc/environment -----
 
-#sshix $ip 'mkdir -p local/scripts'
+  # Kill the item, if it is already in the file
+  sudo perl -ni -e "print unless /^${1}=/" /etc/environment
 
-bootstrap_script="$(realpath ${scripts_dir}/$(basename $0))"
+  # Then, append it
+  echo "$1=$2" | sudo tee -a /etc/environment > /dev/null
+
+  # Finally, remove blank lines
+  sudo perl -ni -e 'print unless /^$/' /etc/environment
+
+}
+
+# -----------------------------------------------------------------------
+# ---------- Bootstrap script from the admin instance -------------------
+# -----------------------------------------------------------------------
+
+# If we are on the admin server, just copy ourselves to the instance
+if [[ $1 != --start ]]; then
+
+  eval "$(cli-shezargs $@)"
+
+  ip="$ip"
+
+  [[ -z $ip ]] && die "Must provide --ip="
+
+  echo "On admin (`hostname`); copying and invoking"
+
+  bootstrap_script="$(realpath ${scripts_dir}/$(basename $0))"
+  frontdoor_script="$(realpath ${scripts_dir}/../scripts/frontdoor.js)"
+  package_script="$(realpath ${scripts_dir}/../scripts/package.json)"
+
+  scpix $bootstrap_script $ip:~/
+  scpix $frontdoor_script $ip:~/
+  scpix $package_script $ip:~/
+
+  sshix $ip 'sudo chmod 777 /tmp'
+  sshix $ip 'mkdir -p local/scripts local/bin && mv bootstrap local/scripts/ && mv frontdoor.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/bootstrap --start'
+  sshix $ip 'cd local/scripts && npm install'
+
+  exit
+fi
+
+# -----------------------------------------------------------------------
+# ---------- Buildout the instance (from the instance itself) -----------
+# -----------------------------------------------------------------------
+
+echo "On instance (`hostname`); building"
+
+osversion="$(lsb_release -c | awk '{print $2}')"
+
+# Install Node dependencies via apt
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ntp build-essential autoconf libc6-dev automake libtool bison python python-dev python-software-properties tree vim
+
+# Get the PGP key from nodesource
+curl -sS https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -
+
+# Add nodesource to our sources
+echo "deb https://deb.nodesource.com/node_8.x ${osversion} main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+
+# Now that we know about nodesource's repos, install node
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+
+# Update so that "npm install -g" does not require sudo -- see https://docs.npmjs.com/getting-started/fixing-npm-permissions
+export NPM_CONFIG_PREFIX=/home/${USER}/.npm-global
+mkdir -p $NPM_CONFIG_PREFIX
+set_env NPM_CONFIG_PREFIX $NPM_CONFIG_PREFIX
+
+# Put NODE_PATH in the environment
+export NODE_PATH="$(npm root -g)"
+set_env NODE_PATH "$NODE_PATH"
+
+# Put the new npm global in the path
+sudo perl -pi -e "s/PATH=\"/PATH=\"\/home\/${USER}\/.npm-global\/bin:\/home\/${USER}\/local\/bin:/g" /etc/environment
+export PATH="${NPM_CONFIG_PREFIX}/bin:$PATH"
+
+# Install cli-shezargs
+npm install -g cli-shezargs
+
+echo $PATH
 

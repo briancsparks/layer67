@@ -1,0 +1,80 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+if ! which nginx > /dev/null; then
+  mkdir -p ~/zz_packages && cd $_
+
+  curl -s -O "https://s3.amazonaws.com/mobilewebprint-deploy/buildout/packages/zlib-1.2.8.tar.gz"
+  curl -s -O "https://s3.amazonaws.com/mobilewebprint-deploy/buildout/packages/pcre-8.38.tar.gz"
+  curl -s -O "https://s3.amazonaws.com/mobilewebprint-deploy/buildout/packages/openssl-1.0.1u.tar.gz"
+  curl -s -O "https://s3.amazonaws.com/mobilewebprint-deploy/buildout/packages/nginx-1.9.15.tar.gz"
+
+  tar xzf "$(find ./ -maxdepth 1 -type f | egrep 'openssl.*\.tar\.gz$')"
+  tar xzf "$(find ./ -maxdepth 1 -type f | egrep 'pcre.*\.tar\.gz$')"
+  tar xzf "$(find ./ -maxdepth 1 -type f | egrep 'zlib.*\.tar\.gz$')"
+  tar xzf "$(find ./ -maxdepth 1 -type f | egrep 'nginx.*\.tar\.gz$')"
+
+  ln -fs "$(find ./ -maxdepth 1 -type d | egrep 'nginx')" nginx
+
+  # According to https://forum.nginx.org/read.php?2,256012,256064#msg-256064
+  # This is required on Mac to compile OpenSSL
+  #export KERNEL_BITS=64
+
+  # This name clashes with the NGINX tarball
+  git clone git@github.com:vkholodkov/nginx-eval-module.git
+
+  cd nginx
+  ./configure \
+    --prefix=/usr/local/nginx \
+    --conf-path=/etc/nginx/nginx.conf \
+    --http-log-path=/var/log/nginx/access.log \
+    --error-log-path=/var/log/nginx/error.log \
+    --pid-path=/var/run/nginx.pid \
+    --lock-path=/var/lock/nginx.lock \
+    --http-client-body-temp-path=/var/tmp/nginx/client \
+    --http-proxy-temp-path=/var/tmp/nginx/proxy \
+    --user=www-data \
+    --group=www-data \
+    --add-module=${HOME}/zz_packages/nginx/$(find ../ -maxdepth 1 -type d | egrep nginx.eval) \
+    --with-http_realip_module \
+    --with-openssl=${HOME}/zz_packages/nginx/$(find ../ -maxdepth 1 -type d | egrep openssl) \
+    --with-pcre \
+    --with-pcre=${HOME}/zz_packages/nginx/$(find ../ -maxdepth 1 -type d | egrep pcre) \
+    --with-zlib=${HOME}/zz_packages/nginx/$(find ../ -maxdepth 1 -type d | egrep zlib) \
+    --with-http_ssl_module \
+    --with-http_perl_module \
+    --with-http_stub_status_module
+
+  # Make it!
+  make
+
+  # DO NOT use -j on these makes
+  sudo make install
+
+  # Make a link to the nginx binary from sbin
+  test -f /usr/local/nginx/sbin/nginx && sudo ln -fs /usr/local/nginx/sbin/nginx /usr/sbin/nginx
+
+  # vim
+  if [ -d contrib/vim ]; then
+    mkdir -p $HOME/.vim/bundle/nginx
+    cp -r contrib/vim/* $HOME/.vim/bundle/nginx/
+  fi
+
+  # Give ownership of logs dirs
+  sudo mkdir -p /var/log/nginx
+  sudo touch /var/log/nginx/access.log
+  sudo touch /var/log/nginx/error.log
+  sudo chown -R www-data:www-data /var/log/nginx
+
+  cd
+
+  # Make dirs
+  sudo mkdir -p /var/tmp/nginx && sudo chown -R www-data:www-data $_
+  sudo mkdir -p /etc/nginx/sites-available
+  sudo mkdir -p /etc/nginx/sites-enabled
+
+  mkdir -p ~/www
+
+  cd
+fi
