@@ -50,6 +50,7 @@ const main = function() {
     if (a === 'exit' || a === 'close') {
       sg._200(req, res, {closing:true});
       setTimeout(function() { server.close(); }, 100);
+      return;
     }
 
     if (lib[a] && _.isFunction(lib[a][b])) {
@@ -80,10 +81,12 @@ const handleUpload = function(req, res, callback) {
 
   // ---------- On:progress ----------
   form.on('progress', (recd, expected) => {
+    console.log('Info:progress', {recd, expected});
   });
 
   // ---------- On:file ----------
   form.on('file', (name, file) => {
+    console.log('Info:file', {name, file});
   });
 
   // ---------- parse ----------
@@ -96,48 +99,6 @@ const handleUpload = function(req, res, callback) {
 
       result.files    = sg.deepCopy(files);
       result.fields   = sg.deepCopy(fields_);
-
-//      // Fields is the payload, but might have the key attributes
-//      fields          = serverassist.normalizeBody(fields_ || {}, {}, {});
-//
-//      // Restore the payload field -- probably undefined, but forcibly added by normalizeBody
-//      fields.payload  = fields_.payload;
-//
-//      body            = serverassist.normalizeBody(fields || {}, params || {}, query || {});
-//
-//      if (!body.sessionId) {
-//        code = 400;
-//        msg  = `Must provide sessionId`;
-//        return;
-//      }
-//
-//      const bucket   = bucketName(body.projectId);
-//      if (!bucket) {
-//        code = 404;
-//        msg  = `No bucket for ${body.projectId}`;
-//        return;
-//      }
-
-//      var item = sg.extend(body.payload.shift(), _.omit(fields, 'clientId,sessionId,projectId,version'.split(',')));
-//      sg.__each(files, (file, nextFile, key) => {
-//        const s3Params = serverassist.bucketParamsFile(body.clientId, body.sessionId, bucket, file.path, file.name);
-//
-//        return s3.putObject(s3Params, (err, data) => {
-//          console.log(`uploadedBlob ${file.name} (${file.size} bytes) to ${bucket} ${shortenKey(s3Params.Key)}`, err, data);
-//          item = sg.kv(item, key, file.name);
-//          return nextFile();
-//        });
-//
-//      }, function() {
-//
-//        body.payload.unshift(item);
-//
-//        // Add a JSON object to reference the uploaded
-//        const s3Params  = serverassist.bucketParamsJson(body.clientId, body.sessionId, bucket, JSON.stringify(body));
-//        return s3.putObject(s3Params, (err, data) => {
-//          console.log(`telemetry added ${body.payload.length} to S3 (${shortenKey(s3Params.Key)}):`, err, data);
-//        });
-//      });
     }
 
   });
@@ -145,17 +106,16 @@ const handleUpload = function(req, res, callback) {
   // ---------- On:end ----------
   form.on('end', () => {
     return callback(null, result);
-//    code      = code || 200;
-//    result.ok = (code >= 200 && code < 400);
-//    serverassist['_'+code](req, res, result, msg);
   });
 
   // ---------- On:error ----------
   form.on('error', (err) => {
+    console.error('Error', err);
   });
 
   // ---------- On:aborted ----------
   form.on('aborted', () => {
+    console.log('Info:aborted');
   });
 };
 
@@ -168,6 +128,12 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
   return handleUpload(req, res, function(err, uploadResult) {
     if (sg.ok(err, uploadResult)) {
 
+      var   execOptions = {async:true, timeout:0, shell: '/bin/bash'};
+
+      if (url.cwd) {
+        execOptions.cwd = url.cwd;
+      }
+
       var scriptsToRun = [];
       _.each(uploadResult.files, function(file, fieldName) {
         if (test('-f', file.path)) {
@@ -177,11 +143,16 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
       });
 
       // Now, run them
+      const spawnOptions = {
+        cwd:  process.env.HOME,
+        env:  process.env
+      };
+
       var index = 0;
       return sg.__each(scriptsToRun, function(path, next) {
         const runIndex    = index;
-        var   runResult   = {outlen:0, index, path};
-        var   child       = exec(path, {async:true});
+        var   runResult   = {outlen:0, errlen:0, index, path};
+        var   child       = child_process.spawn(path, [], spawnOptions);
 
         child.stdout.on('data', function(chunk) {
           runResult.outlen += chunk.length;
@@ -189,12 +160,12 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
         });
 
         child.stderr.on('data', function(chunk) {
+          runResult.errlen += chunk.length;
           process.stderr.write(chunk);
         });
 
-        child.on('exit', function(code, signal) {
-
-          _.extend(runResult, {code, signal});
+        child.on('close', function(code) {
+          _.extend(runResult, {code});
           result.exits[runIndex] = runResult;
           return next();
         });
@@ -203,8 +174,8 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
 
       }, function done() {
 
-        console.log("======================================");
-        console.log("Done running:", result);
+        //console.log("======================================");
+        //console.log("Done running:", result);
         return sg._200(req, res, result);
       });
     }

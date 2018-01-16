@@ -21,18 +21,15 @@ wait_for_start() {
 # us-east-1  trusty   14.04 LTS  amd64  hvm:ebs-ssd  20171208  ami-764a210c  hvm
 # us-east-1  precise  12.04 LTS  amd64  hvm:ebs-ssd  20170502  ami-a04529b6  hvm
 
+frontdoor_port="12345"
 userdata_file="$(realpath ${scripts_dir}/data/userdata0)"
-userdata="$(base64 --wrap=0 $userdata_file)"
-
-#    --user-data               "$userdata" \
-#    --iam-instance-profile    "Arn=arn:aws:iam::084075158741:role/serverassist-web-instance-role" \
 
 rm -f /tmp/run-instance-result.json
 
-
+# ---------- Launch an instance ----------
 set +e
 
-for octet4 in 9 8 7 6 5 4
+for octet4 in 9 8 7 6 5 4 3 2
 do
 
   aws ec2 run-instances \
@@ -59,14 +56,59 @@ set -e
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
 
-cat /tmp/run-instance-result.json | jq '.'
+ip_for_filename="$(echo $ip | tr '.' '-')"
+uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
+cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
+# ---------- Once it starts, bootstrap it ----------
 wait_for_start $ip
 
 ${scripts_dir}/bootstrap --ip=$ip
 
+echo "===================================================================================="
+echo " Starting Listener to push basic script"
+echo "===================================================================================="
+
+# Start a frontdoor server on the new instance (must do in bg)
+sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip" &
+
+# Stall
+sleep 5
+
+# Send the script to setup the basics
+curl -sS "http://${ip}:${frontdoor_port}/run/sh" -F "script=@${scripts_dir}/on-instance/setup-instance-basics" | tee "/tmp/setup-instance-basics-${ip_for_filename}.log"
+
+# The frontdoor server is still running, so send it a signal to shutdown
+curl -sS "http://${ip}:${frontdoor_port}/exit"
+
+wait
+
+echo "===================================================================================="
+echo " Starting Listener to push nginx setup script"
+echo "===================================================================================="
+
+# Start a frontdoor server on the new instance (must do in bg)
+sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip" &
+
+# Stall
+sleep 5
+
+# Send the script to setup Nginx
+curl -sS "http://${ip}:${frontdoor_port}/run/sh" -F "nxscript=@${scripts_dir}/on-instance/build-nginx" | tee "/tmp/build-nginx-${ip_for_filename}.log"
+
+# The frontdoor server is still running, so send it a signal to shutdown
+curl -sS "http://${ip}:${frontdoor_port}/exit"
+
+wait
+
+# ---------- Notes for the user ----------
 echo "To terminate:"
 echo "  aws ec2 terminate-instances --instance-ids $instance_id"
+echo ""
+echo ""
 
+#cat /tmp/run-instance-result.json | jq '.'
+echo "Instance data is at $uniq_log_filename"
+echo "  cat $uniq_log_filename | jq '.'"
 
 
