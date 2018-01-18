@@ -55,7 +55,7 @@ if [[ $1 != --start ]]; then
   scpix $package_script $ip:~/
 
   sshix $ip 'sudo chmod 777 /tmp'
-  sshix $ip 'mkdir -p local/scripts local/bin && mv bootstrap local/scripts/ && mv frontdoor.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/bootstrap --start'
+  sshix $ip 'mkdir -p local/scripts local/bin && mv 01-bootstrap local/scripts/ && mv frontdoor.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/01-bootstrap --start'
 
   echo "npm install-ing scripts..."
   sshix $ip 'cd local/scripts && npm install'
@@ -118,5 +118,9 @@ git config --global user.name "Yoshi T. Munchakoopas"
 if [[ $osversion != precise ]]; then
   git config --global push.default simple
 fi
+
+# ---------- sshd ----------
+echo 'AcceptEnv AWS_ACCESS_KEY_ID' |      sudo tee -a /etc/ssh/sshd_config
+echo 'AcceptEnv AWS_SECRET_ACCESS_KEY'  | sudo tee -a /etc/ssh/sshd_config
 
 

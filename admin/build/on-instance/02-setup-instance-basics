@@ -2,6 +2,12 @@
 
 eval "$(cli-shezargs $@)"
 
+# Announce section
+ann_sect() {
+  echoerr "---------- $1 ----------"
+  echoerr '~~~annsect~~~' "(($1))" "(($2))"
+}
+
 # --------- Set some parameters ----------
 osversion="$(lsb_release -c | awk '{print $2}')"
 
@@ -12,6 +18,7 @@ else
 fi
 
 # --------- Make scotty dir workable ----------
+ann_sect "Make scotty dir workable" "workdirworkable"
 
 # Make a user-specific binary dir
 mkdir -p ~/local/bin
@@ -24,6 +31,8 @@ chmod a+rx ~/.cache
 chmod ug+w ~/.cache
 
 # --------- Install AWS tools ----------
+ann_sect "Install AWS tools" "install-aws"
+
 
 # AWS cli
 mkdir -p ~/zz_packages && cd $_
@@ -32,27 +41,13 @@ sudo -H ${python_cmd} get-pip.py
 sudo -H pip install awscli
 sudo -H pip install saws
 
-## --------- Validate with github ----------
-#if ! git config --global user.email; then
-#
-#  # Github
-#  ssh -o "StrictHostKeyChecking no" git@github.com || true
-#
-#  # Github Enterprise
-#  ssh -o "StrictHostKeyChecking no" git@github.azc.ext.hp.com || true
-#
-#  git config --global user.email "yoshi.t.munchakoopas@hp.com"
-#  git config --global user.name "Yoshi T. Munchakoopas"
-#
-#  if [[ $osversion != precise ]]; then
-#    git config --global push.default simple
-#  fi
-#fi
-
 # --------- Node command-line tools ----------
+ann_sect "Node command-line tools" "install-pm2"
+
 npm install -g underscore-cli run-anywhere serve pm2
 
 # ---------- Install the bulk of the apt stuff ----------
+ann_sect "Install the bulk of the apt stuff" "big-apt-get"
 
 # Add other repos -- rsyslog
 sudo DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:adiscon/v8-stable
@@ -67,6 +62,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libxslt-dev libmysqlclient-dev cscope exuberant-ctags realpath unzip libcairo2 libcairo2-dev libjpeg-dev rsyslog silversearcher-ag
 
 # ---------- rsyslog ----------
+ann_sect "fixups" "fixups"
 
 # Turn on UDP inside rsyslog
 sudo perl -pi -e 's/^#(.*ModLoad\s+imudp.*)$/$1/'    /etc/rsyslog.conf
@@ -78,7 +74,8 @@ sudo perl -pi -e 's/^#(.*UDPServerRun\s+514.*)$/$1/' /etc/rsyslog.conf
 sudo chmod g+w /var
 sudo chmod g+w /var/log
 
-
 # --------- Fetch pm2-js-cluster ----------
+ann_sect "Install pm2-js-cluster" "pm2-js-cluster"
+
 (mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/pm2-js-cluster)
 

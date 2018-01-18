@@ -117,7 +117,7 @@ echo "==========================================================================
 
 wait_for_start $ip
 
-${scripts_dir}/bootstrap --ip=$ip
+${scripts_dir}/01-bootstrap --ip=$ip
 
 echo "===================================================================================="
 echo " Starting Listener to push scripts"
@@ -138,7 +138,7 @@ if [[ -z $skip_basic ]]; then
   # ========================================================================================
 
   # Send the script to setup the basics
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=basic" -F "script=@${scripts_dir}/on-instance/setup-instance-basics" > "/tmp/setup-instance-basics-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=basic" -F "script=@${scripts_dir}/on-instance/02-setup-instance-basics" > "/tmp/setup-instance-basics-${ip_for_filename}.json"
   cat "/tmp/setup-instance-basics-${ip_for_filename}.json" | jq '.' || true
 
 fi
@@ -151,7 +151,7 @@ if [[ -z $skip_nginx ]]; then
   # ========================================================================================
 
   # Send the script to setup Nginx
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/03-build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
   cat "/tmp/build-nginx-${ip_for_filename}.json" | jq '.' || true
 
 fi
@@ -164,7 +164,7 @@ if [[ -z $skip_devops ]]; then
   # ========================================================================================
 
   # Send the script to setup devops tools
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=devops" -F "nxscript=@${scripts_dir}/on-instance/setup-devops" > "/tmp/setup-devops-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=devops" -F "nxscript=@${scripts_dir}/on-instance/04-setup-devops" > "/tmp/setup-devops-${ip_for_filename}.json"
   cat "/tmp/setup-devops-${ip_for_filename}.json" | jq '.' || true
 
 fi

@@ -129,19 +129,32 @@ lib.run = {};
 lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
 
   var   result = {exits:[]};
+console.log('--', sg.inspect(url));
 
-  const stdoutLabel = url.stdoutLabel || url.stdout || url.label || g_execLabels.stdout;
-  const stderrLabel = url.stderrLabel || url.stderr || url.label || g_execLabels.stderr;
+  const stdoutLabel = url.query.stdoutLabel || url.query.stdout || url.query.label || g_execLabels.stdout;
+  const stderrLabel = url.query.stderrLabel || url.query.stderr || url.query.label || g_execLabels.stderr;
 
-  const toStdout = function(line, isLast) {
-    if (isLast && line.length === 0) { return; }
-    process.stdout.write(`${tpad(stdoutLabel, 14)}: ${line}\n`);
-  }
+  var   sectionLabel = '';
 
-  const toStderr = function(line, isLast) {
-    if (isLast && line.length === 0) { return; }
-    process.stderr.write(`${tpad(stderrLabel, 14)}: ${chalk.red(line)}\n`);
-  }
+  const evalLine = function(line, isLast) {
+    const m = line.match(/~~~annsect~~~ [(][(](.*)[)][)] [(][(](.*)[)][)]/i);
+    if (m) {
+      sectionLabel = m[2];
+    }
+    return line;
+  };
+
+  const toStdout = function(line_, isLast) {
+    if (isLast && line_.length === 0) { return; }
+    const line = evalLine(line_, isLast);
+    process.stdout.write(`${tpad(`${stdoutLabel}.${sectionLabel}`, 28)}: ${line}\n`);
+  };
+
+  const toStderr = function(line_, isLast) {
+    if (isLast && line_.length === 0) { return; }
+    const line = evalLine(line_, isLast);
+    process.stderr.write(`${tpad(`${stderrLabel}.${sectionLabel}`, 28)}: ${chalk.red(line)}\n`);
+  };
 
   return handleUpload(req, res, function(err, uploadResult) {
     if (sg.ok(err, uploadResult)) {
@@ -231,6 +244,6 @@ main();
 
 // Truncate and pad
 function tpad(str, len) {
-  return sg.pad(str.substr(0,len), len);
+  return sg.lpad(str.substr(0,len), len);
 }
 
