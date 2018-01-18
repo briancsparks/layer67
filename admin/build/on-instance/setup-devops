@@ -1,0 +1,31 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+
+# ---------- Dotfiles ----------
+if ! [[ -d $HOME/dotfiles ]]; then
+
+  cd
+  git clone git@github.com:briancsparks/dotfiles.git
+  cd dotfiles
+  ./setup
+  ./setupbash
+
+  sudo perl -pi -e "s/PATH=\"/PATH=\"\/home\/$(whoami)\/dotfiles\/bin:/g" /etc/environment
+
+fi
+
+# ---------- Cli tools ----------
+
+# ag
+if ! which ag > /dev/null; then
+  sudo apt-get install -y silversearcher-ag
+fi
+
+# hr
+if ! [[ -f /usr/local/bin/hr ]]; then
+  curl -sL https://raw.githubusercontent.com/LuRsT/hr/master/hr | sudo tee /usr/local/bin/hr > /dev/null
+  sudo chmod +x /usr/local/bin/hr
+fi
+

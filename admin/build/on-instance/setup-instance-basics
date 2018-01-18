@@ -32,22 +32,22 @@ sudo -H ${python_cmd} get-pip.py
 sudo -H pip install awscli
 sudo -H pip install saws
 
-# --------- Validate with github ----------
-if ! git config --global user.email; then
-
-  # Github
-  ssh -o "StrictHostKeyChecking no" git@github.com || true
-
-  # Github Enterprise
-  ssh -o "StrictHostKeyChecking no" git@github.azc.ext.hp.com || true
-
-  git config --global user.email "yoshi.t.munchakoopas@hp.com"
-  git config --global user.name "Yoshi T. Munchakoopas"
-
-  if [[ $osversion != precise ]]; then
-    git config --global push.default simple
-  fi
-fi
+## --------- Validate with github ----------
+#if ! git config --global user.email; then
+#
+#  # Github
+#  ssh -o "StrictHostKeyChecking no" git@github.com || true
+#
+#  # Github Enterprise
+#  ssh -o "StrictHostKeyChecking no" git@github.azc.ext.hp.com || true
+#
+#  git config --global user.email "yoshi.t.munchakoopas@hp.com"
+#  git config --global user.name "Yoshi T. Munchakoopas"
+#
+#  if [[ $osversion != precise ]]; then
+#    git config --global push.default simple
+#  fi
+#fi
 
 # --------- Node command-line tools ----------
 npm install -g underscore-cli run-anywhere serve pm2

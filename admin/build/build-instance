@@ -3,12 +3,59 @@
 eval "$(cli-shezargs $@)"
 
 wait_for_start() {
-  echo "wait for start |${1}| whoami"
+  local start="$SECONDS"
+
+  echo -n "wait for start |${1}| whoami"
   while ! sshix -o ConnectTimeout=5 ${1} whoami; do
-    sleep 3
-    echo "wait for start |${1}| whoami"
+    sleep 1
+    echo -n '.'
   done
-  sleep 3
+
+  echo " -- Starting took: $(($SECONDS - $start)) seconds"
+  sleep 1
+}
+
+wait_for_ami() {
+  local ami_state
+  local old_ami_state="none"
+  local image_id="$1"
+  local state="$2"
+
+  [[ -z $state ]] && state="available"
+
+  local start="$SECONDS"
+
+  ami_state="$(aws ec2 describe-images --image-ids "$image_id" | jq -r '.Images[0].State')"
+
+  set +e
+  while [[ $ami_state != $state ]]; do
+    if [[ $ami_state != $old_ami_state ]]; then
+      echo
+      echo -n "$(date) |$image_id| |$old_ami_state| -> |$ami_state|"
+    else
+      echo -n '.'
+    fi
+
+    old_ami_state="$ami_state"
+    sleep 1
+    ami_state="$(aws ec2 describe-images --image-ids "$image_id" | jq -r '.Images[0].State')"
+  done
+  set -e
+
+  echo " -- Getting $image_id to state $ami_state took: $(($SECONDS - $start)) seconds"
+}
+
+
+aws_ec2() {
+  #echoerr aws ec2 "$@"
+
+  printf "aws ec2" 1>&2
+  for x in "$@"; do
+    printf " '%s'" "$x" 1>&2
+  done
+  printf '\n' 1>&2
+
+  aws ec2 "$@"
 }
 
 
@@ -21,12 +68,16 @@ wait_for_start() {
 # us-east-1  trusty   14.04 LTS  amd64  hvm:ebs-ssd  20171208  ami-764a210c  hvm
 # us-east-1  precise  12.04 LTS  amd64  hvm:ebs-ssd  20170502  ami-a04529b6  hvm
 
+os_name="xenial"
 frontdoor_port="12345"
 userdata_file="$(realpath ${scripts_dir}/data/userdata0)"
 
 rm -f /tmp/run-instance-result.json
 
-# ---------- Launch an instance ----------
+echo "===================================================================================="
+echo " Launching instance"
+echo "===================================================================================="
+
 set +e
 
 for octet4 in 9 8 7 6 5 4 3 2
@@ -60,50 +111,117 @@ ip_for_filename="$(echo $ip | tr '.' '-')"
 uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
 cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
-# ---------- Once it starts, bootstrap it ----------
+echo "===================================================================================="
+echo " Bootstrapping $ip"
+echo "===================================================================================="
+
 wait_for_start $ip
 
 ${scripts_dir}/bootstrap --ip=$ip
 
 echo "===================================================================================="
-echo " Starting Listener to push basic script"
+echo " Starting Listener to push scripts"
 echo "===================================================================================="
 
 # Start a frontdoor server on the new instance (must do in bg)
-sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip" &
+echo sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip --color=256"
+sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip --color=256" &
 
 # Stall
 sleep 5
 
-# Send the script to setup the basics
-curl -sS "http://${ip}:${frontdoor_port}/run/sh" -F "script=@${scripts_dir}/on-instance/setup-instance-basics" | tee "/tmp/setup-instance-basics-${ip_for_filename}.log"
+#skip_basic=1
+if [[ -z $skip_basic ]]; then
+
+  # ========================================================================================
+  announce " Run basic script"
+  # ========================================================================================
+
+  # Send the script to setup the basics
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=basic" -F "script=@${scripts_dir}/on-instance/setup-instance-basics" > "/tmp/setup-instance-basics-${ip_for_filename}.json"
+  cat "/tmp/setup-instance-basics-${ip_for_filename}.json" | jq '.' || true
+
+fi
+
+#skip_nginx=1
+if [[ -z $skip_nginx ]]; then
+
+  # ========================================================================================
+  announce " Run nginx setup script"
+  # ========================================================================================
+
+  # Send the script to setup Nginx
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
+  cat "/tmp/build-nginx-${ip_for_filename}.json" | jq '.' || true
+
+fi
+
+#skip_devops=1
+if [[ -z $skip_devops ]]; then
+
+  # ========================================================================================
+  announce " Run devops setup script"
+  # ========================================================================================
+
+  # Send the script to setup devops tools
+  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=devops" -F "nxscript=@${scripts_dir}/on-instance/setup-devops" > "/tmp/setup-devops-${ip_for_filename}.json"
+  cat "/tmp/setup-devops-${ip_for_filename}.json" | jq '.' || true
+
+fi
 
 # The frontdoor server is still running, so send it a signal to shutdown
-curl -sS "http://${ip}:${frontdoor_port}/exit"
+curl -sS "http://${ip}:${frontdoor_port}/exit" | jq '.'
 
 wait
 
-echo "===================================================================================="
-echo " Starting Listener to push nginx setup script"
-echo "===================================================================================="
 
-# Start a frontdoor server on the new instance (must do in bg)
-sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip" &
+#skip_ami=1
+if [[ -z $skip_ami ]]; then
+  # ---------- Make a Snapshot ----------
+  echo "===================================================================================="
+  echo " Making a snapshot from $instance_id"
+  echo "===================================================================================="
 
-# Stall
-sleep 5
+  dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
+  prod_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'pub:[0-9]+' | cut -d':' -f2)"
 
-# Send the script to setup Nginx
-curl -sS "http://${ip}:${frontdoor_port}/run/sh" -F "nxscript=@${scripts_dir}/on-instance/build-nginx" | tee "/tmp/build-nginx-${ip_for_filename}.log"
+  # Figure out the build number
+  rm -f /tmp/amis.json
+  aws ec2 describe-images --owners "$dev_acct_num" > /tmp/amis.json
+  build_num="$(cat /tmp/amis.json | jq -r '.Images[].Name' | egrep 'layer67-base-' | cut -d- -f3 | sort -n | tail -1)"
+  build_num="$(($build_num + 1))"
 
-# The frontdoor server is still running, so send it a signal to shutdown
-curl -sS "http://${ip}:${frontdoor_port}/exit"
+  ami_name="layer67-base-${build_num}"
 
-wait
+  aws_ec2 create-image --description "$ami_name" --name "$ami_name" --reboot --instance-id "${instance_id}" > /tmp/ci.json
+  image_id="$(cat /tmp/ci.json | jq -r '.ImageId')"
+
+  # Wait for the image to be built
+  wait_for_ami $image_id pending
+  wait_for_start $ip
+  wait_for_ami $image_id
+  echo ""
+
+  if [[ -n $prod_acct_num ]]; then
+    aws_ec2 modify-image-attribute --image-id "$image_id" --launch-permission "{\"Add\": [{\"UserId\":\"${prod_acct_num}\"}]}"
+    aws_ec2 create-tags --resources "$image_id" --tags "Key=Name,Value=$ami_name" "Key=os,Value=$os_name"
+
+    snapshot_id="$(aws ec2 describe-images --image-ids "$image_id" | jq -r '.Images[0].BlockDeviceMappings[0].Ebs.SnapshotId')"
+    if [[ -n $snapshot_id ]]; then
+      aws_ec2 modify-snapshot-attribute --snapshot-id "$snapshot_id"  --attribute createVolumePermission --operation-type add --user-ids "${prod_acct_num}"
+      aws_ec2 create-tags --resources "$snapshot_id" --tags "Key=imageId,Value=$image_id" "Key=imageName,Value=$ami_name"
+      aws_ec2 create-tags --resources "$image_id"    --tags "Key=snapshotId,Value=$snapshot_id"
+    fi
+  fi
+
+  echo "New AMI built: $image_id"
+fi
 
 # ---------- Notes for the user ----------
 echo "To terminate:"
 echo "  aws ec2 terminate-instances --instance-ids $instance_id"
+echo "or:"
+echo "  terminate-instances $ip"
 echo ""
 echo ""
 

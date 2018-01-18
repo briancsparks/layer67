@@ -12,6 +12,7 @@ const urlLib                  = require('url');
 const formidable              = require('formidable');
 const fs                      = sg.extlibs.fs;
 const sh                      = sg.extlibs.shelljs;
+const chalk                   = sg.extlibs.chalk;
 
 sg.requireShellJsGlobal();
 
@@ -27,10 +28,14 @@ const execEz                  = util.promisify(sg.execEz);
 const uploadDir               = path.join('/tmp', 'frontdoor', 'upload');
 const zzPackagesDir           = path.join(process.env.HOME, 'zz_packages');
 
+var   g_execLabels = {stdout:'stdout', stderr:'stderr'};
 var   zzPackages;
 
 if (!ARGV.port) { console.error('Need --port='); process.exit(2); }
 if (!ARGV.ip)   { console.error('Need --ip='); process.exit(2); }
+
+chalk.enabled = true;
+chalk.level   = 2;
 
 var lib = {};
 
@@ -86,7 +91,7 @@ const handleUpload = function(req, res, callback) {
 
   // ---------- On:file ----------
   form.on('file', (name, file) => {
-    console.log('Info:file', {name, file});
+    console.log('Info:file', {name, size: file.size, origName: file.name});
   });
 
   // ---------- parse ----------
@@ -123,7 +128,20 @@ lib.run = {};
 
 lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
 
-  var result = {exits:[]};
+  var   result = {exits:[]};
+
+  const stdoutLabel = url.stdoutLabel || url.stdout || url.label || g_execLabels.stdout;
+  const stderrLabel = url.stderrLabel || url.stderr || url.label || g_execLabels.stderr;
+
+  const toStdout = function(line, isLast) {
+    if (isLast && line.length === 0) { return; }
+    process.stdout.write(`${tpad(stdoutLabel, 14)}: ${line}\n`);
+  }
+
+  const toStderr = function(line, isLast) {
+    if (isLast && line.length === 0) { return; }
+    process.stderr.write(`${tpad(stderrLabel, 14)}: ${chalk.red(line)}\n`);
+  }
 
   return handleUpload(req, res, function(err, uploadResult) {
     if (sg.ok(err, uploadResult)) {
@@ -154,17 +172,29 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
         var   runResult   = {outlen:0, errlen:0, index, path};
         var   child       = child_process.spawn(path, [], spawnOptions);
 
+        var stdoutRemainder = '';
         child.stdout.on('data', function(chunk) {
+          var lines = (stdoutRemainder + chunk).split('\n');
+          stdoutRemainder = lines.pop();
+
           runResult.outlen += chunk.length;
-          process.stdout.write(chunk);
+          _.each(lines, line => { toStdout(line); });
         });
 
+        var stderrRemainder = '';
         child.stderr.on('data', function(chunk) {
+          var lines = (stderrRemainder + chunk).split('\n');
+          stderrRemainder = lines.pop();
+
           runResult.errlen += chunk.length;
-          process.stderr.write(chunk);
+          _.each(lines, line => { toStderr(line); });
         });
 
         child.on('close', function(code) {
+
+          toStdout(stdoutRemainder, true);
+          toStderr(stderrRemainder, true);
+
           _.extend(runResult, {code});
           result.exits[runIndex] = runResult;
           return next();
@@ -174,8 +204,6 @@ lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
 
       }, function done() {
 
-        //console.log("======================================");
-        //console.log("Done running:", result);
         return sg._200(req, res, result);
       });
     }
@@ -200,4 +228,9 @@ _.each(lib, (value, key) => {
 fs.mkdirpSync(uploadDir);
 
 main();
+
+// Truncate and pad
+function tpad(str, len) {
+  return sg.pad(str.substr(0,len), len);
+}
 

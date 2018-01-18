@@ -40,11 +40,15 @@ if [[ $1 != --start ]]; then
 
   [[ -z $ip ]] && die "Must provide --ip="
 
-  echo "On admin (`hostname`); copying and invoking"
+  echo "=============================================================="
+  echo " On admin (`hostname`); copying and invoking"
+  echo "=============================================================="
 
   bootstrap_script="$(realpath ${scripts_dir}/$(basename $0))"
   frontdoor_script="$(realpath ${scripts_dir}/../scripts/frontdoor.js)"
   package_script="$(realpath ${scripts_dir}/../scripts/package.json)"
+
+  #vimcat $frontdoor_script
 
   scpix $bootstrap_script $ip:~/
   scpix $frontdoor_script $ip:~/
@@ -52,8 +56,11 @@ if [[ $1 != --start ]]; then
 
   sshix $ip 'sudo chmod 777 /tmp'
   sshix $ip 'mkdir -p local/scripts local/bin && mv bootstrap local/scripts/ && mv frontdoor.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/bootstrap --start'
+
+  echo "npm install-ing scripts..."
   sshix $ip 'cd local/scripts && npm install'
 
+  echo "Bootstraping $ip done."
   exit
 fi
 
@@ -61,7 +68,9 @@ fi
 # ---------- Buildout the instance (from the instance itself) -----------
 # -----------------------------------------------------------------------
 
-echo "On instance (`hostname`); building"
+echo "=============================================================="
+echo " On instance (`hostname`); building"
+echo "=============================================================="
 
 osversion="$(lsb_release -c | awk '{print $2}')"
 
@@ -97,5 +106,17 @@ export PATH="${NPM_CONFIG_PREFIX}/bin:$PATH"
 # Install cli-shezargs
 npm install -g cli-shezargs
 
-echo $PATH
+# ---------- Github ----------
+ssh -o "StrictHostKeyChecking no" git@github.com || true
+
+# Github Enterprise
+ssh -o "StrictHostKeyChecking no" git@github.azc.ext.hp.com || true
+
+git config --global user.email "yoshi.t.munchakoopas@hp.com"
+git config --global user.name "Yoshi T. Munchakoopas"
+
+if [[ $osversion != precise ]]; then
+  git config --global push.default simple
+fi
+
 
