@@ -214,15 +214,16 @@ if [[ -z $skip_ami ]]; then
     fi
   fi
 
+  echo ""
   echo "New AMI built: $image_id"
+  echo ""
 fi
 
 # ---------- Notes for the user ----------
-echo "To terminate:"
+echo "To terminate instance:"
 echo "  aws ec2 terminate-instances --instance-ids $instance_id"
 echo "or:"
 echo "  terminate-instances $ip"
-echo ""
 echo ""
 
 #cat /tmp/run-instance-result.json | jq '.'
