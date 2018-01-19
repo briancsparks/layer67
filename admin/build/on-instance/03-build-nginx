@@ -2,6 +2,12 @@
 
 eval "$(cli-shezargs $@)"
 
+# Announce section
+ann_sect() {
+#  echoerr "---------- $1 ----------"
+  echoerr '~~~annsect~~~' "(($1))" "(($2))"
+}
+
 if ! which nginx > /dev/null; then
   ann_sect "Building Nginx" "build-nginx"
 

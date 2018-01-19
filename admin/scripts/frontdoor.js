@@ -140,6 +140,7 @@ console.log('--', sg.inspect(url));
     const m = line.match(/~~~annsect~~~ [(][(](.*)[)][)] [(][(](.*)[)][)]/i);
     if (m) {
       sectionLabel = m[2];
+      return "---------- "+m[1]+" ----------";
     }
     return line;
   };

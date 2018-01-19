@@ -2,6 +2,11 @@
 
 eval "$(cli-shezargs $@)"
 
+# Announce section
+ann_sect() {
+#  echoerr "---------- $1 ----------"
+  echoerr '~~~annsect~~~' "(($1))" "(($2))"
+}
 
 # ---------- Dotfiles ----------
 if ! [[ -d $HOME/dotfiles ]]; then
