@@ -154,6 +154,11 @@ if [[ -z $skip_nginx ]]; then
   curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/03-build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
   cat "/tmp/build-nginx-${ip_for_filename}.json" | jq '.' || true
 
+  # copy some templates
+  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-target-ssl-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-ssl-settings.conf"
+  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-target-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-settings.conf"
+  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-targets.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-targets.conf"
+
 fi
 
 #skip_devops=1
@@ -169,10 +174,42 @@ if [[ -z $skip_devops ]]; then
 
 fi
 
+
 # The frontdoor server is still running, so send it a signal to shutdown
 curl -sS "http://${ip}:${frontdoor_port}/exit" | jq '.'
 
 wait
+
+
+
+#skip_finish_buildout=1
+if [[ -z $skip_finish_buildout ]]; then
+
+  # ========================================================================================
+  announce " Finishing buildout"
+  # ========================================================================================
+
+  # Do one last apt update
+
+  set +e
+  sshix $ip "[[ -f /var/run/reboot-required ]] && sudo shutdown -r now"
+  set -e
+
+  # Wait for the reboot
+  sleep 0.5
+  wait_for_start $ip
+
+  sshix $ip "sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get dist-upgrade -y"
+
+  set +e
+  sshix $ip "[[ -f /var/run/reboot-required ]] && sudo shutdown -r now"
+  set -e
+
+  # Wait for the reboot
+  sleep 0.5
+  wait_for_start $ip
+
+fi
 
 
 #skip_ami=1
