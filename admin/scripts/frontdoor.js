@@ -138,12 +138,11 @@ cmds.put = function(req, res, url, restOfPath_) {
   var restOfPath = _.toArray(restOfPath_);
 
   var result = {items:[]};
-
   if (_.first(restOfPath) === 'home') {
     restOfPath = [process.env.HOME, ..._.rest(restOfPath)];
   }
 
-  const dirpath = path.join('', ...restOfPath);
+  const dirpath = path.sep+path.join(...restOfPath);
   const sudo    = url.query.sudo;
   const mode    = url.query.mode  || url.query.chmod;
   const own     = url.query.own   || url.query.chown;
