@@ -10,6 +10,7 @@ const path                    = require('path');
 const http                    = require('http');
 const urlLib                  = require('url');
 const formidable              = require('formidable');
+const child_process           = require('child_process');
 const fs                      = sg.extlibs.fs;
 const sh                      = sg.extlibs.shelljs;
 const chalk                   = sg.extlibs.chalk;
@@ -31,15 +32,18 @@ const zzPackagesDir           = path.join(process.env.HOME, 'zz_packages');
 var   g_execLabels = {stdout:'stdout', stderr:'stderr'};
 var   zzPackages;
 
-if (!ARGV.port) { console.error('Need --port='); process.exit(2); }
-if (!ARGV.ip)   { console.error('Need --ip='); process.exit(2); }
-
 chalk.enabled = true;
 chalk.level   = 2;
 
-var lib = {};
+// We build 2 objects to export like we usually do for `lib` -- adding `cmds`
+//   This is so that only `cmds` are avilable via the HTTP path.
+var lib   = {};
+var cmds  = {};
 
 const main = function() {
+
+  if (!ARGV.port) { console.error('Need --port='); process.exit(2); }
+  if (!ARGV.ip)   { console.error('Need --ip='); process.exit(2); }
 
   const server = http.createServer((req, res) => {
 
@@ -48,9 +52,12 @@ const main = function() {
     res.setTimeout(0);
 
     const url       = urlLib.parse(req.url, true);
-    const pathParts = _.rest(url.pathname.split('/'));
+    var   pathParts = _.rest(url.pathname.split('/'));
 
+    const sudo      = consumeIfEq(pathParts, 'sudo');
     const [ a, b ]  = pathParts;
+
+    setOnn(url, 'query.sudo', sudo);
 
     if (a === 'exit' || a === 'close') {
       sg._200(req, res, {closing:true});
@@ -58,11 +65,11 @@ const main = function() {
       return;
     }
 
-    if (lib[a] && _.isFunction(lib[a][b])) {
-      return lib[a][b](req, res, url, _.rest(pathParts, 2).join('/'));
+    if (cmds[a] && _.isFunction(cmds[a][b])) {
+      return cmds[a][b](req, res, url, _.rest(pathParts, 2));
 
-    } else if (_.isFunction(lib[a])) {
-      return lib[a][b](req, res, url, _.rest(pathParts).join('/'));
+    } else if (_.isFunction(cmds[a])) {
+      return cmds[a](req, res, url, _.rest(pathParts));
     }
 
     res.statusCode = 404;
@@ -76,7 +83,7 @@ const main = function() {
 
 };
 
-const handleUpload = function(req, res, callback) {
+const handleUpload = lib.handleUpload = function(req, res, callback) {
 
   var   form    = new formidable.IncomingForm();
   var   result  = {};
@@ -124,12 +131,116 @@ const handleUpload = function(req, res, callback) {
   });
 };
 
-lib.run = {};
+cmds.run   = {};
+cmds.build = {};
 
-lib.run.bash = lib.run.sh = function(req, res, url, restOfPath) {
+cmds.put = function(req, res, url, restOfPath_) {
+  var restOfPath = _.toArray(restOfPath_);
+
+  if (_.first(restOfPath) === 'home') {
+    restOfPath = [...process.env.HOME, ..._.rest(restOfPath)];
+  }
+
+  const dirpath = path.join('', ...restOfPath);
+  const sudo    = url.query.sudo;
+  const mode    = url.query.mode  || url.query.chmod;
+  const own     = url.query.own   || url.query.chown;
+
+  return handleUpload(req, res, function(err, uploadResult) {
+    if (sg.ok(err, uploadResult)) {
+      _.each(uploadResult.files, function(file, fieldName) {
+        const dest = path.join(dirpath, fieldName);
+
+        su_cp(sudo, file.path, dest);
+
+        if (mode) {
+          su_chmod(sudo, mode, dest);
+        }
+
+        if (own) {
+          su_chown(sudo, own, dest);
+        }
+      });
+    }
+  });
+};
+
+const execSync = function(command, options) {
+  console.log('exec-ing: '+command);
+
+  if (options) {
+    return child_process.execSync(command, options);
+  }
+
+  return child_process.execSync(command);
+};
+
+lib.su_chown = function(sudo, mode, dest) {
+
+  if (!sudo) {
+    chown(mode, dest);
+
+  } else {
+
+    /* otherwise */
+    try {
+      const stdout = execSync(`/usr/bin/sudo chown '${mode}' '${dest}'`);
+
+      if (stdout) {
+        console.log(stdout);
+      }
+    } catch(error) {
+      console.error(error);
+      return;
+    }
+  }
+};
+
+lib.su_chmod = function(sudo, mode, dest) {
+
+  if (!sudo) {
+    chmod(mode, dest);
+
+  } else {
+
+    /* otherwise */
+    try {
+      const stdout = execSync(`/usr/bin/sudo chmod '${mode}' '${dest}'`);
+
+      if (stdout) {
+        console.log(stdout);
+      }
+    } catch(error) {
+      console.error(error);
+      return;
+    }
+  }
+};
+
+lib.su_cp = function(sudo, src, dest) {
+
+  if (!sudo) {
+    cp(src, dest);
+
+  } else {
+
+    /* otherwise */
+    try {
+      const stdout = execSync(`/usr/bin/sudo cp '${src}' '${dest}'`);
+
+      if (stdout) {
+        console.log(stdout);
+      }
+    } catch(error) {
+      console.error(error);
+      return;
+    }
+  }
+};
+
+cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, res, url, restOfPath) {
 
   var   result = {exits:[]};
-console.log('--', sg.inspect(url));
 
   const stdoutLabel = url.query.stdoutLabel || url.query.stdout || url.query.label || g_execLabels.stdout;
   const stderrLabel = url.query.stderrLabel || url.query.stderr || url.query.label || g_execLabels.stderr;
@@ -229,22 +340,36 @@ console.log('--', sg.inspect(url));
 
 
 
-zzPackages = lib.zzPackages = function(pathname) {
+zzPackages = cmds.zzPackages = function(pathname) {
   return path.join(zzPackagesDir, pathname);
 };
 
 
-
+lib.cmds = cmds;
 _.each(lib, (value, key) => {
   exports[key] = value;
 });
 
 fs.mkdirpSync(uploadDir);
 
-main();
+if (__filename === process.argv[1]) {
+  main();
+}
 
 // Truncate and pad
 function tpad(str, len) {
   return sg.lpad(str.substr(0,len), len);
 }
+
+function consumeIfEq(arr, value) {
+  if (arr.length === 0) { return; }
+
+  if (arr[0] === value) {
+    arr.shift();
+    return value;
+  }
+
+  return;
+}
+
 

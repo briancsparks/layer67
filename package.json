@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/briancsparks/layer67/issues"
   },
-  "homepage": "https://github.com/briancsparks/layer67#readme"
+  "homepage": "https://github.com/briancsparks/layer67#readme",
+  "dependencies": {
+    "sgsg": "^0.9.48"
+  }
 }
