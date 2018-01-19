@@ -155,9 +155,9 @@ if [[ -z $skip_nginx ]]; then
   cat "/tmp/build-nginx-${ip_for_filename}.json" | jq '.' || true
 
   # copy some templates
-  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-target-ssl-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-ssl-settings.conf"
-  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-target-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-settings.conf"
-  curl 'http://10.13.1.6:12340/sudo/put/etc/nginx/rpxi?chown=root&chmod=640' -F "reverse-targets.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-targets.conf"
+  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-ssl-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-ssl-settings.conf"
+  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-settings.conf"
+  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-targets.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-targets.conf"
 
 fi
 

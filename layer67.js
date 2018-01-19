@@ -11,20 +11,9 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 
+var   usage;
+
 var   commands                = {};
-
-const usage = function(message) {
-  if (message) {
-    console.log(message);
-  }
-
-  console.log(
-`Usage: layer67 command ...
-
-    commands: agent (alias: command-server, cmd)
-                --port[=12340]
-                --ip[=127.0.0.1]`);
-};
 
 const main = function() {
   var   command = ARGV.args.shift();
@@ -52,6 +41,19 @@ commands.agent = commands.commandServer = commands['command-server'] = commands.
 
   return frontdoor.runFrontdoorServer({}, {}, function(err, launched) {
   });
+};
+
+usage = function(message) {
+  if (message) {
+    console.log(message);
+  }
+
+  console.log(
+`Usage: layer67 command ...
+
+    commands: agent (alias: command-server, cmd)
+                --port[=12340]
+                --ip[=127.0.0.1]`);
 };
 
 
