@@ -10,7 +10,6 @@ const path                    = require('path');
 const http                    = require('http');
 const urlLib                  = require('url');
 const formidable              = require('formidable');
-const child_process           = require('child_process');
 const fs                      = sg.extlibs.fs;
 const sh                      = sg.extlibs.shelljs;
 const chalk                   = sg.extlibs.chalk;
@@ -53,7 +52,6 @@ const main = function() {
 
     const url       = urlLib.parse(req.url, true);
     var   pathParts = _.rest(url.pathname.split('/'));
-
     const sudo      = consumeIfEq(pathParts, 'sudo');
     const [ a, b ]  = pathParts;
 
@@ -134,11 +132,15 @@ const handleUpload = lib.handleUpload = function(req, res, callback) {
 cmds.run   = {};
 cmds.build = {};
 
+var su_cp, su_chown, su_chmod, su_mkdirp;
+
 cmds.put = function(req, res, url, restOfPath_) {
   var restOfPath = _.toArray(restOfPath_);
 
+  var result = {items:[]};
+
   if (_.first(restOfPath) === 'home') {
-    restOfPath = [...process.env.HOME, ..._.rest(restOfPath)];
+    restOfPath = [process.env.HOME, ..._.rest(restOfPath)];
   }
 
   const dirpath = path.join('', ...restOfPath);
@@ -151,90 +153,112 @@ cmds.put = function(req, res, url, restOfPath_) {
       _.each(uploadResult.files, function(file, fieldName) {
         const dest = path.join(dirpath, fieldName);
 
-        su_cp(sudo, file.path, dest);
+        var   itemResult = {};
+        try {
+          su_mkdirp(sudo, dirpath);
+          if (su_cp(sudo, file.path, dest)) {
 
-        if (mode) {
-          su_chmod(sudo, mode, dest);
-        }
+            if (mode) {
+              su_chmod(sudo, mode, dest);
+            }
 
-        if (own) {
-          su_chown(sudo, own, dest);
+            if (own) {
+              su_chown(sudo, own, dest);
+            }
+
+            itemResult = _.pick(fs.statSync(dest), 'size', 'atime', 'mtime', 'ctime');
+            itemResult.name  = dest;
+
+          } else {
+            itemResult = 'Fail: cp to '+dest;
+          }
+
+          result.items.push(itemResult);
+
+        } catch(error) {
+          result.items.push(error);
+          console.error(error);
         }
       });
+
+      return sg._200(req, res, result);
+    }
+
+    /* otherwise */
+    return sg._400(req, res);
+  });
+};
+
+const execSync = function(sudo, command_, options) {
+  var command = command_;
+
+  if (_.isArray(command)) {
+    command = command[0]+' '+_.map(_.rest(command), item => `'${item}'`).join(' ');
+  }
+
+  if (sudo) {
+    command = '/usr/bin/sudo '+command;
+  }
+
+  console.log('exec-ing: '+command);
+
+  try {
+    if (options) {
+      return child_process.execSync(command, options);
+    }
+
+    return child_process.execSync(command);
+  } catch(error) {
+  }
+
+  return;
+};
+
+su_cp = lib.su_cp = function(sudo, src, dest) {
+
+  const command = ['cp', src, dest];
+  const stdout  = execSync(sudo, command);
+
+  if (stdout) {
+    console.log(''+stdout);
+  }
+
+  return !sg.isnt(stdout);
+};
+
+su_mkdirp = lib.su_mkdirp = function(sudo, ...dirs) {
+  _.each(dirs, dir => {
+    const command = ['mkdir', '-p', dir];
+
+    const stdout = execSync(sudo, command);
+    if (stdout) {
+      console.log(''+stdout);
     }
   });
 };
 
-const execSync = function(command, options) {
-  console.log('exec-ing: '+command);
+su_chmod = lib.su_chmod = function(sudo, mode, dest) {
 
-  if (options) {
-    return child_process.execSync(command, options);
-  }
+  const command = ['chmod', mode, dest];
+  const stdout  = execSync(sudo, command);
 
-  return child_process.execSync(command);
-};
-
-lib.su_chown = function(sudo, mode, dest) {
-
-  if (!sudo) {
-    chown(mode, dest);
-
-  } else {
-
-    /* otherwise */
-    try {
-      const stdout = execSync(`/usr/bin/sudo chown '${mode}' '${dest}'`);
-
-      if (stdout) {
-        console.log(stdout);
-      }
-    } catch(error) {
-      console.error(error);
-      return;
-    }
+  if (stdout) {
+    console.log(''+stdout);
   }
 };
 
-lib.su_chmod = function(sudo, mode, dest) {
+su_chown = lib.su_chown = function(sudo, own_, dest) {
+  var   own = own_;
 
-  if (!sudo) {
-    chmod(mode, dest);
-
-  } else {
-
-    /* otherwise */
-    try {
-      const stdout = execSync(`/usr/bin/sudo chmod '${mode}' '${dest}'`);
-
-      if (stdout) {
-        console.log(stdout);
-      }
-    } catch(error) {
-      console.error(error);
-      return;
-    }
+  if (own.split(':').length === 1) {
+    own = `${own}:${own}`;
   }
-};
 
-lib.su_cp = function(sudo, src, dest) {
+  const command = ['chown', own, dest];
+  const stdout  = execSync(sudo, command);
 
-  if (!sudo) {
-    cp(src, dest);
-
-  } else {
-
-    /* otherwise */
-    try {
-      const stdout = execSync(`/usr/bin/sudo cp '${src}' '${dest}'`);
-
-      if (stdout) {
-        console.log(stdout);
-      }
-    } catch(error) {
-      console.error(error);
-      return;
-    }
+  if (stdout) {
+    console.log(''+stdout);
   }
 };
 
@@ -340,7 +364,7 @@ cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, re
 
 
 
-zzPackages = cmds.zzPackages = function(pathname) {
+zzPackages = lib.zzPackages = function(pathname) {
   return path.join(zzPackagesDir, pathname);
 };
 

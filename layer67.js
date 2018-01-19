@@ -56,7 +56,7 @@ commands.agent = commands.commandServer = commands['command-server'] = commands.
 
 
 
-if (__filename === process.argv[1]) {
+if (sg.callMain(ARGV, __filename)) {
   main();
 }
 
