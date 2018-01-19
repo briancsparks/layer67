@@ -17,6 +17,9 @@
   },
   "homepage": "https://github.com/briancsparks/layer67#readme",
   "dependencies": {
-    "sgsg": "^0.9.48"
+    "run-anywhere": "^0.1.8",
+    "sgsg": "^0.9.48",
+    "tempy": "^0.2.1",
+    "touch": "^3.1.0"
   }
 }
