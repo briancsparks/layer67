@@ -1,0 +1,24 @@
+#!/bin/bash -e
+
+#
+# This is the startup script for starting a basic layer67 web-tier server.
+#
+# 1. Build nginx conf files
+# 2. Start the frontdoor listener
+# 3. Start the router
+# 4. Signal that I am up
+# 5. The master will push certs
+# 6. Start nginx and be in business
+#
+
+# Add npm to path
+#PATH="/home/scotty/.npm-global/bin:$PATH"
+
+#/home/scotty/.npm-global/bin/ra invoke lib/commands/configweb.js saveServerConfig --client-certs --https --fqdn=console.mobilewebassist.net
+#
+#agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+#
+#(cd ~/dev/layer67 && npm install)
+#(cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip="$agent_ip")
+
+

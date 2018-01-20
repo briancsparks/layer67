@@ -77,10 +77,10 @@ sudo chmod g+w /var/log
 # --------- Fetch pm2-js-cluster ----------
 ann_sect "Install pm2-js-cluster" "pm2-js-cluster"
 
-(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/pm2-js-cluster)
+(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/pm2-js-cluster && cd pm2-js-cluster && npm install)
 
 # ---------- Get repos ----------
 ann_sect "Get repos" "repos"
 
-(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/layer67)
+(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/layer67 && cd layer67 && npm install)
 

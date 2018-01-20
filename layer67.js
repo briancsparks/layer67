@@ -1,5 +1,8 @@
 
 /**
+ *  Get layer67 up and working.
+ *
+ *  pm2 start layer67.js --watch -- agent
  *
  */
 const sg                      = require('sgsg');

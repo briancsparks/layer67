@@ -1,0 +1,173 @@
+#!/bin/bash -e
+
+#
+# Launch an instance that does the basic layer67 functionality:
+#
+# * Provides the world-facing instances that are hardened, fast and
+#   have all the features you expect in a 2018 stack.
+#
+
+#agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+
+instance_type="c5.large"
+
+eval "$(cli-shezargs $@)"
+
+wait_for_start() {
+  local start="$SECONDS"
+
+  echo -n "wait for start |${1}| whoami"
+  while ! sshix -o ConnectTimeout=5 ${1} whoami; do
+    sleep 1
+    echo -n '.'
+  done
+
+  echo " -- Starting took: $(($SECONDS - $start)) seconds"
+  sleep 1
+}
+
+# =========================================================================================
+announce " Launching instance"
+# =========================================================================================
+
+rm -f /tmp/run-instance-result.json
+
+# ----- Create a temp user-data file -----
+userdata_src="$(realpath ${scripts_dir}/data/userdata1)"
+userdata_file="$(mktemp)"
+
+cat  $userdata_src | head -1   > $userdata_file
+echo "export MCFLY=marty"     >> $userdata_file
+tail -n +2 $userdata_src      >> $userdata_file
+
+echo "userdata:"
+cat $userdata_file
+
+# ----- Figure out the build number -----
+rm -f /tmp/amis.json
+dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
+echo "dev_acct_num: $dev_acct_num"
+aws ec2 describe-images --owners "$dev_acct_num" > /tmp/amis.json
+build_num="$(cat /tmp/amis.json | jq -r '.Images[].Name' | egrep 'layer67-base-' | cut -d- -f3 | sort -n | tail -1)"
+echo "build_num: $build_num"
+
+image_id="$(cat /tmp/amis.json | jq -r '.Images[] | select( .Name == "layer67-base-18") | .ImageId')"
+echo "image_id: $image_id"
+
+set +e
+
+for octet4 in 9 8 7 6 5 4 3 2
+do
+
+  aws ec2 run-instances \
+      --image-id                "$image_id" \
+      --instance-type           "$instance_type" \
+      --key-name                "mario_demo" \
+      --security-group-ids      "sg-539cf02d" \
+      --iam-instance-profile    "Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO" \
+      --user-data               "file://${userdata_file}" \
+      --private-ip-address      "10.13.2.${octet4}" \
+      --subnet-id               "subnet-79cc7331" \
+      --count                   1 \
+        > /tmp/run-instance-result.json
+
+  result="$?"
+  echo $result
+  [[ $result == 0 ]] && break
+
+done
+
+set -e
+
+# Figure out what IP we ended up with
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
+
+ip_for_filename="$(echo $ip | tr '.' '-')"
+uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
+cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
+
+# ---------- Once the instance is started, finalize it to work ----------
+
+wait_for_start $ip
+
+#agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+
+sshix $ip "cd ~/dev/layer67 && npm install || true"
+sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl "http://169.254.169.254/latest/meta-data/local-ipv4")'
+
+# ---------- Configure nginx ----------
+
+#ra invoke lib/commands/configweb.js saveServerConfig --client-certs --default --fqdn=hq67.mobilewebassist.net
+
+curl -sS "http://$ip:12340/root-config"
+curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&client_certs=1&use_https=1"
+#curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebprint.net&client_certs=1&use_https=1"
+#curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewexprint.net&client_certs=1&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&use_https=1"
+
+
+curl -sS 'http://10.13.2.9:12340/file/etc/nginx/sites-enabled/console.mobilewebassist.net.conf' | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+
+# /etc/nginx/certs/hq.mobilewebassist.net.cer
+fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
+basefile="$(basename $fullpath)"
+
+cat /tmp/config.json | jq -r '.keyfile'
+cat /tmp/config.json | jq -r '.clientCert'
+
+curl -sS 'http://10.13.2.9:12340/file/etc/nginx/sites-enabled/hq.mobilewebassist.net.conf' | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+
+cat /tmp/config.json | jq -r '.certfile'
+cat /tmp/config.json | jq -r '.keyfile'
+cat /tmp/config.json | jq -r '.clientCert'
+
+
+
+
+
+# Notes:
+
+#
+# This command will cause the instance to listen for the FQDN, as the default server, and requiring
+# client certificates. At startup, a list should be given.
+#
+# ra invoke lib/commands/configweb.js saveServerConfig --client-certs --default --fqdn=hq67.mobilewebassist.net
+#
+# * console.mobilewebassist.net.crt
+# * console.mobilewebassist.net.key
+# * console.mobilewebprint.net.crt
+# * console.mobilewebprint.net.key
+# * console.mobilewexprint.net.crt
+# * console.mobilewexprint.net.key
+# * hq.mobilewebassist.net.crt
+# * hq.mobilewebassist.net.key
+# *
+# * mobilewebassist_root_client_ca.crt
+# * mobilewebprint_root_client_ca.crt
+# * mobilewexprint_root_client_ca.crt
+#
+# Then, the FQDN configs need to be scanned for certs they need. To this end, the confs have a built-in
+# JSON object that can easily be found.
+#
+# cat /etc/nginx/sites-enabled/hq67.mobilewebassist.net.conf | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' | jq .
+#
+#
+#
+# Then those certs can be retrieved and un-encrypted:
+#
+# ra invoke  ../dev/layer67/lib/crypto-kms.js decrypt --base=mobilewebprint_root_client_ca.crt
+#
+#
+#
+# Then, those certs can be put to the instance:
+#
+# curl -sS 'http://10.13.1.9:12340/sudo/put/etc/nginx/asdf?chmod=640&chown=root' -F 'cfg.json=@/home/scotty/stmp/hq.mobilewebassist.net.crt' | jq .
+#
+#
+#
+#
+#
+#
+#
+
