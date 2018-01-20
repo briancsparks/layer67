@@ -13,7 +13,6 @@ const formidable              = require('formidable');
 const fs                      = sg.extlibs.fs;
 const sh                      = sg.extlibs.shelljs;
 const chalk                   = sg.extlibs.chalk;
-const utils                   = require('../../lib/utils');
 
 sg.requireShellJsGlobal();
 
@@ -25,7 +24,6 @@ const deref                   = sg.deref;
 const spawn                   = child_process.spawn;
 const exec                    = child_process.exec;
 const execEz                  = util.promisify(sg.execEz);
-const decode                  = utils.decode;
 
 const uploadDir               = path.join('/tmp', 'frontdoor', 'upload');
 const zzPackagesDir           = path.join(process.env.HOME, 'zz_packages');
@@ -435,4 +433,14 @@ function consumeIfEq(arr, value) {
   return;
 }
 
+function decode(buffer, encoding) {
+  const decoder = new StringDecoder(encoding);
+
+  var   result  = '';
+
+  result  = decoder.write(buffer);
+  result += decoder.end();
+
+  return result;
+};
 
