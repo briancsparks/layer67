@@ -44,6 +44,9 @@ echo "userdata:"
 cat $userdata_file
 
 # ----- Figure out the build number -----
+
+#cat /tmp/amis.json | jq -r --arg x "$abcd" '.Images[] | select( .Name | contains($x))'
+
 rm -f /tmp/amis.json
 dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
 echo "dev_acct_num: $dev_acct_num"
@@ -51,7 +54,8 @@ aws ec2 describe-images --owners "$dev_acct_num" > /tmp/amis.json
 build_num="$(cat /tmp/amis.json | jq -r '.Images[].Name' | egrep 'layer67-base-' | cut -d- -f3 | sort -n | tail -1)"
 echo "build_num: $build_num"
 
-image_id="$(cat /tmp/amis.json | jq -r '.Images[] | select( .Name == "layer67-base-18") | .ImageId')"
+#image_id="$(cat /tmp/amis.json | jq -r '.Images[] | select( .Name == "layer67-base-18") | .ImageId')"
+image_id="$(cat /tmp/amis.json | jq -r --arg x "layer67-base-${build_num}" '.Images[] | select( .Name | contains($x)) | .ImageId')"
 echo "image_id: $image_id"
 
 set +e
@@ -96,9 +100,10 @@ wait_for_start $ip
 sshix $ip "cd ~/dev/layer67 && npm install || true"
 sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl "http://169.254.169.254/latest/meta-data/local-ipv4")'
 
-# ---------- Configure nginx ----------
+echo "Waiting to let instance start listening..."
+sleep 5
 
-#ra invoke lib/commands/configweb.js saveServerConfig --client-certs --default --fqdn=hq67.mobilewebassist.net
+# ---------- Configure nginx ----------
 
 curl -sS "http://$ip:12340/root-config"
 curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&client_certs=1&use_https=1"
@@ -107,21 +112,32 @@ curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&client
 curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&use_https=1"
 
 
-curl -sS 'http://10.13.2.9:12340/file/etc/nginx/sites-enabled/console.mobilewebassist.net.conf' | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' | tee /tmp/config.json
 
 # /etc/nginx/certs/hq.mobilewebassist.net.cer
 fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
 basefile="$(basename $fullpath)"
 
+echo $fullpath
+echo $basefile
+
+echo 'starting to push cert to server'
+ra invoke ../../lib/crypto-kms.js pushCertToServer --ip=$ip --fullpath=$fullpath
+echo 'done pushing cert to server'
+
 cat /tmp/config.json | jq -r '.keyfile'
 cat /tmp/config.json | jq -r '.clientCert'
 
-curl -sS 'http://10.13.2.9:12340/file/etc/nginx/sites-enabled/hq.mobilewebassist.net.conf' | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+#curl -sS 'http://$ip:12340/file/etc/nginx/sites-enabled/hq.mobilewebassist.net.conf' | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 
 cat /tmp/config.json | jq -r '.certfile'
 cat /tmp/config.json | jq -r '.keyfile'
 cat /tmp/config.json | jq -r '.clientCert'
 
+
+#
+# Have to call pushCertToServer() in crypto-kms.js
+#
 
 
 
