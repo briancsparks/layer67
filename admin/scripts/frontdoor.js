@@ -373,33 +373,16 @@ cmds.file = function(req, res, url, restOfPath_) {
 
   const dirpath = path.sep+path.join(...restOfPath);
 
-  return fs.readFile(dirpath, (err, contents) => {
+  return fs.readFile(dirpath, {encoding:'utf8'}, (err, contents) => {
     if (!sg.ok(err, contents)) { return sg._400(req, res); }
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/plain');
-    res.end(decode(contents));
+    //res.end(decode(contents, 'utf8'));
+    res.end(contents, 'utf8');
   });
 };
 
-cmds.file = function(req, res, url, restOfPath_) {
-
-  var restOfPath = _.toArray(restOfPath_);
-
-  var result = {items:[]};
-  if (_.first(restOfPath) === 'home') {
-    restOfPath = [process.env.HOME, ..._.rest(restOfPath)];
-  }
-
-  const dirpath = path.sep+path.join(...restOfPath);
-
-  return fs.readFile(dirpath, (err, contents) => {
-    if (!sg.ok(err, contents)) { return sg._400(req, res); }
-
-    // TODO: provide mime-type
-    return sg._200(req, res, contents);
-  });
-};
 
 zzPackages = lib.zzPackages = function(pathname) {
   return path.join(zzPackagesDir, pathname);
