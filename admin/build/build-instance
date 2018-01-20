@@ -230,6 +230,9 @@ if [[ -z $skip_ami ]]; then
 
   ami_name="layer67-base-${build_num}"
 
+
+  # ---------- The create-image call ----------
+
   aws_ec2 create-image --description "$ami_name" --name "$ami_name" --reboot --instance-id "${instance_id}" > /tmp/ci.json
   image_id="$(cat /tmp/ci.json | jq -r '.ImageId')"
 
@@ -251,17 +254,34 @@ if [[ -z $skip_ami ]]; then
     fi
   fi
 
+  #skip_termination=1
+  if [[ -z $skip_termination ]]; then
+    terminate-instances $ip
+    terminated=1
+  fi
+
   echo ""
   echo "New AMI built: $image_id"
   echo ""
+
+else
+
+  # We skipped making an AMI, which usually means that the instance should be left running, but not always
+  #terminate=1
+  if [[ -n $terminate ]];then
+    terminate-instances $ip
+    terminated=1
+  fi
 fi
 
 # ---------- Notes for the user ----------
-echo "To terminate instance:"
-echo "  aws ec2 terminate-instances --instance-ids $instance_id"
-echo "or:"
-echo "  terminate-instances $ip"
-echo ""
+if [[ -z $terminated ]]; then
+  echo "To terminate instance:"
+  echo "  aws ec2 terminate-instances --instance-ids $instance_id"
+  echo "or:"
+  echo "  terminate-instances $ip"
+  echo ""
+fi
 
 #cat /tmp/run-instance-result.json | jq '.'
 echo "Instance data is at $uniq_log_filename"
