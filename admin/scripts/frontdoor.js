@@ -13,6 +13,7 @@ const formidable              = require('formidable');
 const fs                      = sg.extlibs.fs;
 const sh                      = sg.extlibs.shelljs;
 const chalk                   = sg.extlibs.chalk;
+const utils                   = require('../../lib/utils');
 
 sg.requireShellJsGlobal();
 
@@ -24,6 +25,7 @@ const deref                   = sg.deref;
 const spawn                   = child_process.spawn;
 const exec                    = child_process.exec;
 const execEz                  = util.promisify(sg.execEz);
+const decode                  = utils.decode;
 
 const uploadDir               = path.join('/tmp', 'frontdoor', 'upload');
 const zzPackagesDir           = path.join(process.env.HOME, 'zz_packages');
@@ -358,6 +360,27 @@ cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, re
 
     /* otherwise */
     return sg._400(req, res);
+  });
+};
+
+// TODO: provide mime-type
+cmds.file = function(req, res, url, restOfPath_) {
+
+  var restOfPath = _.toArray(restOfPath_);
+
+  var result = {items:[]};
+  if (_.first(restOfPath) === 'home') {
+    restOfPath = [process.env.HOME, ..._.rest(restOfPath)];
+  }
+
+  const dirpath = path.sep+path.join(...restOfPath);
+
+  return fs.readFile(dirpath, (err, contents) => {
+    if (!sg.ok(err, contents)) { return sg._400(req, res); }
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(decode(contents));
   });
 };
 
