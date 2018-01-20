@@ -110,7 +110,7 @@ cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
 wait_for_start $ip
 
-push-changes-to $ip
+#push-changes-to $ip
 if [[ -n $pause ]]; then
   echo "Instance $ip is up"
   echo " push-changes-to $ip"
