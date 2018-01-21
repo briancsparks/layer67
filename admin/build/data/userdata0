@@ -15,3 +15,7 @@ if ! grep `hostname` /etc/hosts; then
   echo \"127.0.0.1 `hostname`\" | sudo tee -a /etc/hosts
 fi
 
+## ssh on 443
+#perl -pi -e 's/^#?Port 22$/Port 443/' /etc/ssh/sshd_config
+#service sshd restart || service ssh restart
+
