@@ -181,6 +181,12 @@ echo " terminate-instances $ip"
 
 # Notes:
 
+# 1. Build nginx conf files
+# 2. Start the frontdoor listener
+# 3. Start the router
+# 4. Signal that I am up
+# 5. The master will push certs
+# 6. Start nginx and be in business
 #
 # This command will cause the instance to listen for the FQDN, as the default server, and requiring
 # client certificates. At startup, a list should be given.
