@@ -3,6 +3,9 @@
   "version": "0.5.2",
   "description": "All the layer-6 and layer-7 stuff you need so you can just write your code for the cloud.",
   "main": "layer67.js",
+  "bin": {
+    "lr": "bin/lr.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,6 +21,7 @@
   "homepage": "https://github.com/briancsparks/layer67#readme",
   "dependencies": {
     "aws-sdk": "^2.184.0",
+    "difflet": "^1.0.1",
     "run-anywhere": "^0.1.8",
     "sgsg": "^0.9.48",
     "tempy": "^0.2.1",
