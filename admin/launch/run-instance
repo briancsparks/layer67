@@ -6,10 +6,23 @@
 # * Provides the world-facing instances that are hardened, fast and
 #   have all the features you expect in a 2018 stack.
 #
+#
+#
+#
+# run-instance --key-name="HQ" --security-group_ids="sg-85e1e9f1" --subnet-id="subnet-3644707d" --ip="10.91.0.250"
+#
+#
 
 #agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 
 instance_type="c5.large"
+key_name="mario_demo"
+security_group_ids="sg-539cf02d"
+iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO"
+user_data="file://${userdata_file}"
+ip="10.13.2.9"
+subnet_id="subnet-79cc7331"
+count=1
 
 eval "$(cli-shezargs $@)"
 
@@ -73,21 +86,25 @@ echo "build_num: $build_num"
 image_id="$(cat /tmp/amis.json | jq -r --arg x "layer67-base-${build_num}" '.Images[] | select( .Name | contains($x)) | .ImageId')"
 echo "image_id: $image_id"
 
+# ----- Determine the sub-ips -----
+octets123="$(echo $ip | cut -d'.' -f1-3)"
+octet4="$(echo $ip | cut -d'.' -f4)"
+
 set +e
 
-for octet4 in 9 8 7 6 5 4 3 2
+for octet4_offset in 0 1 2 3 4 5 6 7 8
 do
 
   aws ec2 run-instances \
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
-      --key-name                "mario_demo" \
-      --security-group-ids      "sg-539cf02d" \
-      --iam-instance-profile    "Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO" \
-      --user-data               "file://${userdata_file}" \
-      --private-ip-address      "10.13.2.${octet4}" \
-      --subnet-id               "subnet-79cc7331" \
-      --count                   1 \
+      --key-name                "$key_name" \
+      --security-group-ids      "$security_group_ids" \
+      --iam-instance-profile    "$iam_instance_profile" \
+      --user-data               "$file://${userdata_file}" \
+      --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
+      --subnet-id               "$subnet_id" \
+      --count                   "$count" \
         > /tmp/run-instance-result.json
 
   result="$?"
