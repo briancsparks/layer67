@@ -1,0 +1,6 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+${scripts_dir}/run-instance "$(aws dynamodb get-item --table-name peachclusterDb --key '{"id":{"S":"dev-a-web-launchconfig"}}' | jq -r '.Item.cli.S')"
+

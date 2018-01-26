@@ -2,9 +2,14 @@
 
 eval "$(cli-shezargs $@)"
 
-[[ -z ns      ]] && die "Need --ns="
-[[ -z classb  ]] && die "Need --classb="
-[[ -z rel     ]] && die "Need --rel="
+[[ -z $ns      ]] && die "Need --ns="
+[[ -z $classb  ]] && die "Need --classb="
+[[ -z $rel     ]] && die "Need --rel="
+
+acct="084075158741"
+if [[ $rel == prod ]]; then
+  acct="244406501905"
+fi
 
 subnet_public_a="subnet-70083b3b"
 subnet_public_b="subnet-e17816bc"
@@ -23,20 +28,26 @@ sg_util="sg-7358b004"
 sg_app="sg-f35bb384"
 
 # Web tier
-lr put-cluster-db --ns=$ns --key=${rel}-a-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} --ip=10.${classb}.0.10  --subnet-id=${subnet_public_a}"
-lr put-cluster-db --ns=$ns --key=${rel}-b-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} --ip=10.${classb}.4.10  --subnet-id=${subnet_public_b}"
-lr put-cluster-db --ns=$ns --key=${rel}-c-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} --ip=10.${classb}.8.10  --subnet-id=${subnet_public_c}"
-lr put-cluster-db --ns=$ns --key=${rel}-d-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} --ip=10.${classb}.12.10 --subnet-id=${subnet_public_d}"
+instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-web-instance-role"
+
+lr put-cluster-db --ns=$ns --key=${rel}-a-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.0.10  --subnet-id=${subnet_public_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.4.10  --subnet-id=${subnet_public_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.8.10  --subnet-id=${subnet_public_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.12.10 --subnet-id=${subnet_public_d}"
 
 # App tier
-lr put-cluster-db --ns=$ns --key=${rel}-a-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} --ip=10.${classb}.16.32  --subnet-id=${subnet_app_a}"
-lr put-cluster-db --ns=$ns --key=${rel}-b-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} --ip=10.${classb}.32.32  --subnet-id=${subnet_app_b}"
-lr put-cluster-db --ns=$ns --key=${rel}-c-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} --ip=10.${classb}.48.32  --subnet-id=${subnet_app_c}"
-lr put-cluster-db --ns=$ns --key=${rel}-d-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} --ip=10.${classb}.64.32  --subnet-id=${subnet_app_d}"
+instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-app-instance-role"
+
+lr put-cluster-db --ns=$ns --key=${rel}-a-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.16.32  --subnet-id=${subnet_app_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.32.32  --subnet-id=${subnet_app_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.48.32  --subnet-id=${subnet_app_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.64.32  --subnet-id=${subnet_app_d}"
 
 # Admin tier
-lr put-cluster-db --ns=$ns --key=${rel}-a-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-profile=Arn=arn:aws:iam::084075158741:instance-profile/${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.0.250  --subnet-id=${subnet_public_a}"
-lr put-cluster-db --ns=$ns --key=${rel}-b-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-profile=Arn=arn:aws:iam::084075158741:instance-profile/${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.4.250  --subnet-id=${subnet_public_b}"
-lr put-cluster-db --ns=$ns --key=${rel}-c-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-profile=Arn=arn:aws:iam::084075158741:instance-profile/${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.8.250  --subnet-id=${subnet_public_c}"
-lr put-cluster-db --ns=$ns --key=${rel}-d-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-profile=Arn=arn:aws:iam::084075158741:instance-profile/${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.12.250  --subnet-id=${subnet_public_d}"
+instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-admin-instance-role"
+
+lr put-cluster-db --ns=$ns --key=${rel}-a-admin-launchconfig --set=cli="--key-name=HQ $instance_profile --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.0.250  --subnet-id=${subnet_public_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-admin-launchconfig --set=cli="--key-name=HQ $instance_profile --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.4.250  --subnet-id=${subnet_public_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-admin-launchconfig --set=cli="--key-name=HQ $instance_profile --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.8.250  --subnet-id=${subnet_public_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-admin-launchconfig --set=cli="--key-name=HQ $instance_profile --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.12.250  --subnet-id=${subnet_public_d}"
 
