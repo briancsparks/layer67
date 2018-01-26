@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 #
-# All we want to do is to get Node.js installed, and copy frontdoor.js to the ~/local/scripts dir.
+# All we want to do is to get Node.js installed, and copy agent.js to the ~/local/scripts dir.
 #
 
 # -----------------------------------------------------------------------
@@ -45,17 +45,17 @@ if [[ $1 != --start ]]; then
   echo "=============================================================="
 
   bootstrap_script="$(realpath ${scripts_dir}/$(basename $0))"
-  frontdoor_script="$(realpath ${scripts_dir}/../scripts/frontdoor.js)"
+  agent_script="$(realpath ${scripts_dir}/../scripts/agent.js)"
   package_script="$(realpath ${scripts_dir}/../scripts/package.json)"
 
-  #vimcat $frontdoor_script
+  #vimcat $agent_script
 
   scpix $bootstrap_script $ip:~/
-  scpix $frontdoor_script $ip:~/
+  scpix $agent_script $ip:~/
   scpix $package_script $ip:~/
 
   sshix $ip 'sudo chmod 777 /tmp'
-  sshix $ip 'mkdir -p local/scripts local/bin && mv 01-bootstrap local/scripts/ && mv frontdoor.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/01-bootstrap --start'
+  sshix $ip 'mkdir -p local/scripts local/bin && mv 01-bootstrap local/scripts/ && mv agent.js local/scripts/ && mv package.json local/scripts/ && ./local/scripts/01-bootstrap --start'
 
   echo "npm install-ing scripts..."
   sshix $ip 'cd local/scripts && npm install'

@@ -18,7 +18,7 @@ const touch                   = require('touch');
 const tempy                   = require('tempy');
 const fs                      = sg.extlibs.fsExtra;
 const sh                      = sg.extlibs.shelljs;
-const helpers                 = require('../../admin/scripts/frontdoor');
+const helpers                 = require('../../admin/scripts/agent');
 
 const argvGet                 = sg.argvGet;
 const argvExtract             = sg.argvExtract;

@@ -69,7 +69,7 @@ aws_ec2() {
 # us-east-1  precise  12.04 LTS  amd64  hvm:ebs-ssd  20170502  ami-a04529b6  hvm
 
 os_name="xenial"
-frontdoor_port="12345"
+agent_port="12345"
 userdata_file="$(realpath ${scripts_dir}/data/userdata0)"
 
 rm -f /tmp/run-instance-result.json
@@ -123,9 +123,9 @@ echo "==========================================================================
 echo " Starting Listener to push scripts"
 echo "===================================================================================="
 
-# Start a frontdoor server on the new instance (must do in bg)
-echo sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip --color=256"
-sshix $ip "cd local/scripts && node frontdoor.js --port=${frontdoor_port} --ip=$ip --color=256" &
+# Start a agent server on the new instance (must do in bg)
+echo sshix $ip "cd local/scripts && node agent.js --port=${agent_port} --ip=$ip --color=256"
+sshix $ip "cd local/scripts && node agent.js --port=${agent_port} --ip=$ip --color=256" &
 
 # Stall
 sleep 5
@@ -138,7 +138,7 @@ if [[ -z $skip_basic ]]; then
   # ========================================================================================
 
   # Send the script to setup the basics
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=basic" -F "script=@${scripts_dir}/on-instance/02-setup-instance-basics" > "/tmp/setup-instance-basics-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${agent_port}/run/sh?label=basic" -F "script=@${scripts_dir}/on-instance/02-setup-instance-basics" > "/tmp/setup-instance-basics-${ip_for_filename}.json"
   cat "/tmp/setup-instance-basics-${ip_for_filename}.json" | jq '.' || true
 
 fi
@@ -151,13 +151,13 @@ if [[ -z $skip_nginx ]]; then
   # ========================================================================================
 
   # Send the script to setup Nginx
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/03-build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${agent_port}/run/sh?label=nginx" -F "nxscript=@${scripts_dir}/on-instance/03-build-nginx" > "/tmp/build-nginx-${ip_for_filename}.json"
   cat "/tmp/build-nginx-${ip_for_filename}.json" | jq '.' || true
 
   # copy some templates
-  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-ssl-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-ssl-settings.conf"
-  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-settings.conf"
-  curl -sS "http://${ip}:${frontdoor_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-targets.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-targets.conf"
+  curl -sS "http://${ip}:${agent_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-ssl-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-ssl-settings.conf"
+  curl -sS "http://${ip}:${agent_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-target-settings.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-target-settings.conf"
+  curl -sS "http://${ip}:${agent_port}/sudo/put/etc/nginx/rpxi?chown=root&chmod=640" -F "reverse-targets.conf=@${scripts_dir}/data/etc/nginx/rpxi/reverse-targets.conf"
 
 fi
 
@@ -169,14 +169,14 @@ if [[ -z $skip_devops ]]; then
   # ========================================================================================
 
   # Send the script to setup devops tools
-  curl -sS "http://${ip}:${frontdoor_port}/run/sh?label=devops" -F "nxscript=@${scripts_dir}/on-instance/04-setup-devops" > "/tmp/setup-devops-${ip_for_filename}.json"
+  curl -sS "http://${ip}:${agent_port}/run/sh?label=devops" -F "nxscript=@${scripts_dir}/on-instance/04-setup-devops" > "/tmp/setup-devops-${ip_for_filename}.json"
   cat "/tmp/setup-devops-${ip_for_filename}.json" | jq '.' || true
 
 fi
 
 
-# The frontdoor server is still running, so send it a signal to shutdown
-curl -sS "http://${ip}:${frontdoor_port}/exit" | jq '.'
+# The agent server is still running, so send it a signal to shutdown
+curl -sS "http://${ip}:${agent_port}/exit" | jq '.'
 
 wait
 

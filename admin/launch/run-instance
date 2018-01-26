@@ -224,7 +224,7 @@ echo " terminate-instances $ip"
 # Notes:
 
 # 1. Build nginx conf files
-# 2. Start the frontdoor listener
+# 2. Start the agent listener
 # 3. Start the router
 # 4. Signal that I am up
 # 5. The master will push certs

@@ -40,9 +40,9 @@ commands.help = commands.usage = function() {
 };
 
 commands.agent = commands.commandServer = commands['command-server'] = commands.cmd = function() {
-  const frontdoor             = require('./lib/frontdoor');
+  const agent             = require('./lib/agent');
 
-  return frontdoor.runFrontdoorServer({}, {}, function(err, launched) {
+  return agent.runAgentServer({}, {}, function(err, launched) {
   });
 };
 

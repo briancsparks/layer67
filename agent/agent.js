@@ -14,8 +14,8 @@ const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 
 const libFiles = [
-  '../admin/scripts/frontdoor',
-  './commands/configweb'
+  '../admin/scripts/agent',
+  './commands/config-web'
 ];
 
 var   lib   = {};
@@ -34,7 +34,7 @@ _.each(libFiles, file => {
 
 
 
-lib.runFrontdoorServer = function(argv, context, callback) {
+lib.runAgentServer = function(argv, context, callback) {
 
   const ip        = argvGet(argv, 'ip')       || ARGV.ip        || '127.0.0.1';
   const port      = argvGet(argv, 'port')     || ARGV.port      || 12340;

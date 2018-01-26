@@ -25,7 +25,7 @@ const spawn                   = child_process.spawn;
 const exec                    = child_process.exec;
 const execEz                  = util.promisify(sg.execEz);
 
-const uploadDir               = path.join('/tmp', 'frontdoor', 'upload');
+const uploadDir               = path.join('/tmp', 'l67agent', 'upload');
 const zzPackagesDir           = path.join(process.env.HOME, 'zz_packages');
 
 var   g_execLabels = {stdout:'stdout', stderr:'stderr'};
