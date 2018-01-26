@@ -83,6 +83,5 @@ ann_sect "Install pm2-js-cluster" "pm2-js-cluster"
 # ---------- Get repos ----------
 ann_sect "Get repos" "repos"
 
-#(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/layer67 && cd layer67 && npm install)
-(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/layer67 && cd layer67 && git checkout restructure && npm install)
+(mkdir -p ~/dev/ && cd ~/dev/ && git clone git@github.com:briancsparks/layer67 && cd layer67 && npm install)
 
