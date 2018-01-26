@@ -37,7 +37,7 @@ lib.put = lib.putCluster = lib['put-cluster'] = function(ARGV, context, callback
 
 subcmds.put = subcmds.put || {};
 
-// -key-name=HQ --security-group-ids=sg-85e1e9f1 --iam-instance-profile=peach-admin-instance-role --ip=10.91.0.250 --subnet=subnet-3644707d
+// --key-name=HQ --security-group-ids=sg-85e1e9f1 --iam-instance-profile=peach-admin-instance-role --ip=10.91.0.250 --subnet=subnet-3644707d
 subcmds.put.launchConfig = subcmds.put.launchconfig = function(ARGV, context, callback) {
 
   var   u             = sg.prepUsage();
