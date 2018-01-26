@@ -2,6 +2,10 @@
 
 eval "$(cli-shezargs $@)"
 
+if [[ $profile == prod ]]; then
+  use_profile="--profile=sabuildout"
+fi
+
 for ip in "$@"; do
   echo "--- $ip"
   sshix $ip '[[ -f build-scripts/on-instance/z01-pre-terminate ]] && build-scripts/on-instance/z01-pre-terminate || true'
@@ -11,7 +15,7 @@ for ip in "$@"; do
   echo "--- $ip"
   instance_id="$(sshix $ip 'curl -sS http://169.254.169.254/latest/meta-data/instance-id')"
 
-  aws ec2 terminate-instances --instance-ids $instance_id
+  aws ec2 terminate-instances $use_profile --instance-ids $instance_id
 
 done
 
