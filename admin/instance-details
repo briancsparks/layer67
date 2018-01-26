@@ -1,0 +1,30 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+my_mac0="$(curl -sS 'http://169.254.169.254/latest/meta-data/network/interfaces/macs/' | head -1)"
+[[ -n $show ]] && echo "Mac0: $my_mac0"
+
+my_ip="$(curl -sS 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+[[ -n $show ]] && echo "ip: $my_ip"
+
+my_classb="$(echo $my_ip | cut -d'.' -f2)"
+[[ -n $show ]] && echo "classb: $my_classb"
+
+my_owner_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/owner-id")"
+[[ -n $show ]] && echo "owner: $my_owner_id"
+
+my_subnet_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-id")"
+[[ -n $show ]] && echo "subnet: $my_subnet_id"
+
+my_subnet_cidr="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-ipv4-cidr-block")"
+[[ -n $show ]] && echo "subnet cidr: $my_subnet_cidr"
+
+my_vpc_cidr="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/vpc-ipv4-cidr-block")"
+[[ -n $show ]] && echo "vpc cidr: $my_vpc_cidr"
+
+my_vpc_cidr="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/vpc-id")"
+[[ -n $show ]] && echo "vpc: $my_vpc_cidr"
+
+
+

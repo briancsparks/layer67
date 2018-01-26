@@ -1,6 +1,25 @@
 #!/bin/bash -e
 
+my_mac0="$(curl -sS 'http://169.254.169.254/latest/meta-data/network/interfaces/macs/' | head -1)"
+my_ip="$(curl -sS 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+my_classb="$(echo $my_ip | cut -d'.' -f2)"
+my_subnet_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-id")"
+
+nsX="peach"
+
+instance_type="c5.xlarge"
+key_name="mario_demo"
+security_group_ids="sg-915eb6e6"
+iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/${nsX}-web-instance-role"
+#user_data="file://${userdata_file}"
+ip="10.${my_classb}.2.9"
+subnet_id="$my_subnet_id"
+image_id="ami-41e0b93b"
+count=1
+
 eval "$(cli-shezargs $@)"
+
+[[ -n $ns ]] && iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/${ns}-web-instance-role"
 
 wait_for_start() {
   local start="$SECONDS"
@@ -74,24 +93,30 @@ userdata_file="$(realpath ${scripts_dir}/data/userdata0)"
 
 rm -f /tmp/run-instance-result.json
 
+# ----- Determine the sub-ips -----
+octets123="$(echo $ip | cut -d'.' -f1-3)"
+octet4="$(echo $ip | cut -d'.' -f4)"
+
+security_group_ids="$(echo $security_group_ids | tr ',' ' ')"
+
 echo "===================================================================================="
 echo " Launching instance"
 echo "===================================================================================="
 
 set +e
 
-for octet4 in 9 8 7 6 5 4 3 2
+for octet4_offset in 0 1 2 3 4 5 6 7 8
 do
 
   aws ec2 run-instances \
-      --image-id                "ami-41e0b93b" \
-      --instance-type           "c5.xlarge" \
-      --key-name                "mario_demo" \
-      --security-group-ids      "sg-539cf02d" \
-      --iam-instance-profile    "Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO" \
+      --image-id                "$image_id" \
+      --instance-type           "$instance_type" \
+      --key-name                "$key_name" \
+      --security-group-ids      $security_group_ids \
+      --iam-instance-profile    "$iam_instance_profile" \
       --user-data               "file://${userdata_file}" \
-      --private-ip-address      "10.13.1.${octet4}" \
-      --subnet-id               "subnet-79cc7331" \
+      --private-ip-address      "${octets123}.$((${octet4} + ${octet4_offset}))" \
+      --subnet-id               "$subnet_id" \
       --count                   1 \
         > /tmp/run-instance-result.json
 
@@ -281,6 +306,8 @@ if [[ -z $terminated ]]; then
   echo "or:"
   echo "  terminate-instances $ip"
   echo ""
+  echo ""
+  echo "  sshix $ip"
 fi
 
 #cat /tmp/run-instance-result.json | jq '.'

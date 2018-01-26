@@ -1,0 +1,29 @@
+#!/bin/bash -e
+
+#
+# time ./admin/build/build-instance
+#
+# Builds an AMI from the current source. Normally run with no options; but while
+# developing this script, you can skip a lot.
+#
+#       --skip-basic              # skips 02-setup-instance-basics
+#       --skip-nginx              # skips 03-build-nginx
+#       --skip-devops             # skips 04-setup-devops
+#       --skip-finish-buildout    # skips doing a final apt-get update/upgrade before snapshot
+#       --skip-ami
+#       --skip-termination        # When creating AMI, normally terminates; skip the termination
+#                                 #    Only makes sense without --skip-ami
+#       --terminate               # When --skip-ami, terminate the instance
+#
+#
+# Examples:
+#
+#   Skip the most time-consuming items:
+#
+#       time build-instance --skip-nginx --skip-finish-buildout --skip-ami --skip-devops
+#
+
+eval "$(cli-shezargs $@)"
+
+${scripts_dir}/build/build-instance "$@"
+
