@@ -156,6 +156,8 @@ fi
 
 #agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 
+sshix $ip "cd ~/dev/layer67 && git pull"
+
 sshix $ip "cd ~/dev/layer67 && npm install || true"
 sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl -sS "http://169.254.169.254/latest/meta-data/local-ipv4")'
 
@@ -166,10 +168,10 @@ sleep 5
 
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&port=5779&client_certs=1&use_https=1"
-#curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebprint.net&client_certs=1&use_https=1"
-#curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewexprint.net&client_certs=1&use_https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&port=5776&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&use_https=1"
+#curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebprint.net&client_certs=1&use_https=1"
+#curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewexprint.net&client_certs=1&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&use_https=1"
 
 # ---------- Get the nginx conf files ----------
 
@@ -178,14 +180,14 @@ curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&port=5776&u
 announce "Pushing certs to server"
 # =======================================================================
 
-# ----- console.mobilesebassist.net
-printf "\n           %s\n" "console.mobilewebassist.net"
+# ----- l67console.mobilesebassist.net
+printf "\n           %s\n" "l67console.mobilewebassist.net"
 
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 cat /tmp/config.json | jq '.' || true
 printf "\n\n"
 
-# /etc/nginx/certs/console.mobilewebassist.net.cer
+# /etc/nginx/certs/l67console.mobilewebassist.net.cer
 fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
 #echo ra invoke `fn ~/dev 'crypto-kms\.js$'` pushCertToServer --ip=$ip --fullpath=$fullpath
 
@@ -193,10 +195,10 @@ push_cert_to_server "ssh_cert"      "$fullpath" "$ip"
 push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
 push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
 
-# ----- hq.mobilesebassist.net
-printf "\n           %s\n" "hq.mobilewebassist.net"
+# ----- l67hq.mobilesebassist.net
+printf "\n           %s\n" "l67hq.mobilewebassist.net"
 
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 cat /tmp/config.json | jq '.' || true
 printf "\n\n"
 
