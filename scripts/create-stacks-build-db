@@ -6,15 +6,15 @@ eval "$(cli-shezargs $@)"
 [[ -z classb  ]] && die "Need --classb="
 [[ -z rel     ]] && die "Need --rel="
 
-subnet_public_a="70083b3b"
-subnet_public_b="e17816bc"
-subnet_public_c="995339b6"
-subnet_public_d="cd3549f2"
+subnet_public_a="subnet-70083b3b"
+subnet_public_b="subnet-e17816bc"
+subnet_public_c="subnet-995339b6"
+subnet_public_d="subnet-cd3549f2"
 
-subnet_app_a="77083b3c"
-subnet_app_b="417c121c"
-subnet_app_c="ffafc5d0"
-subnet_app_d="79364a46"
+subnet_app_a="subnet-77083b3c"
+subnet_app_b="subnet-417c121c"
+subnet_app_c="subnet-ffafc5d0"
+subnet_app_d="subnet-79364a46"
 
 sg_wide="sg-915eb6e6"
 sg_web="sg-1643ab61"
@@ -35,8 +35,8 @@ lr put-cluster-db --ns=$ns --key=${rel}-c-app-launchconfig --set=cli="--security
 lr put-cluster-db --ns=$ns --key=${rel}-d-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} --ip=10.${classb}.64.32  --subnet-id=${subnet_app_d}"
 
 # Admin tier
-lr put-cluster-db --ns=$ns --key=${rel}-a-admin-launchconfig --set=cli="--security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.0.250  --subnet-id=${subnet_public_a} --ssh-443"
-lr put-cluster-db --ns=$ns --key=${rel}-b-admin-launchconfig --set=cli="--security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.4.250  --subnet-id=${subnet_public_b} --ssh-443"
-lr put-cluster-db --ns=$ns --key=${rel}-c-admin-launchconfig --set=cli="--security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.8.250  --subnet-id=${subnet_public_c} --ssh-443"
-lr put-cluster-db --ns=$ns --key=${rel}-d-admin-launchconfig --set=cli="--security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.12.250  --subnet-id=${subnet_public_d} --ssh-443"
+lr put-cluster-db --ns=$ns --key=${rel}-a-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-role=${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.0.250  --subnet-id=${subnet_public_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-role=${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.4.250  --subnet-id=${subnet_public_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-role=${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.8.250  --subnet-id=${subnet_public_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-admin-launchconfig --set=cli="--key-name=HQ --iam-instance-role=${ns}-admin-instance-role --security-group-ids=${sg_admin},${sg_wide} --ip=10.${classb}.12.250  --subnet-id=${subnet_public_d}"
 
