@@ -40,7 +40,7 @@ commands.help = commands.usage = function() {
 };
 
 commands.agent = commands.commandServer = commands['command-server'] = commands.cmd = function() {
-  const agent             = require('./lib/agent');
+  const agent             = require('./agent/agent');
 
   return agent.runAgentServer({}, {}, function(err, launched) {
   });

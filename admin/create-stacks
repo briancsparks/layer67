@@ -1,0 +1,12 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $ns       ]] && die "Need --ns="
+[[ -z $b        ]] && die "Need --b= (for classb)"
+[[ -z $bt       ]] && die "Neec --bt= (for test classb)"
+
+ra invoke create/create-stacks.js createStacks --stack=${ns} --b=${b} --bt=${bt} | tee /tmp/create-stacks.json
+
+echo "update create-stacks-build-db with sgs and subnets"
+
