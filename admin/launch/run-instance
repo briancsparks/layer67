@@ -166,10 +166,10 @@ sleep 5
 
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&client_certs=1&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebassist.net&port=5779&client_certs=1&use_https=1"
 #curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewebprint.net&client_certs=1&use_https=1"
 #curl -sS "http://$ip:12340/server-config?fqdn=console.mobilewexprint.net&client_certs=1&use_https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=hq.mobilewebassist.net&port=5776&use_https=1"
 
 # ---------- Get the nginx conf files ----------
 
@@ -190,9 +190,8 @@ fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
 #echo ra invoke `fn ~/dev 'crypto-kms\.js$'` pushCertToServer --ip=$ip --fullpath=$fullpath
 
 push_cert_to_server "ssh_cert"      "$fullpath" "$ip"
-push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"
-push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"
-
+push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
+push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
 
 # ----- hq.mobilesebassist.net
 printf "\n           %s\n" "hq.mobilewebassist.net"
@@ -201,11 +200,12 @@ curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/hq.mobilewebassist.net.c
 cat /tmp/config.json | jq '.' || true
 printf "\n\n"
 
-push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"
-push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"
-push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"
+push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
+push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
+push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
 
 
+sshix $ip "cd ~/dev/layer67/hq/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
 
 # ----------- done -----------
