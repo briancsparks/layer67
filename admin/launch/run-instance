@@ -68,6 +68,8 @@ cat  $userdata_src | head -1   > $userdata_file
 echo "export MCFLY=marty"     >> $userdata_file
 tail -n +2 $userdata_src      >> $userdata_file
 
+#echo "touch /var/run/nginx.pid && chown www-data:www-data /var/run/nginx.pid"     >> $userdata_file
+
 if [[ -n $ssh_443 ]]; then
   echo "perl -pi -e 's/^#?Port 22$/Port 443/' /etc/ssh/sshd_config"     >> $userdata_file
   echo "service sshd restart || service ssh restart"                    >> $userdata_file
@@ -158,7 +160,7 @@ fi
 
 sshix $ip "cd ~/dev/layer67 && git pull"
 
-sshix $ip "cd ~/dev/layer67 && npm install || true"
+sshix $ip "cd ~/dev/layer67 && npm install --production || true"
 sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl -sS "http://169.254.169.254/latest/meta-data/local-ipv4")'
 
 echo "Waiting to let instance start listening..."
@@ -168,10 +170,10 @@ sleep 5
 
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&https=1"
 #curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebprint.net&client_certs=1&use_https=1"
 #curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewexprint.net&client_certs=1&use_https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&use_https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&https=1"
 
 # ---------- Get the nginx conf files ----------
 
@@ -209,6 +211,9 @@ push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert
 
 sshix $ip "cd ~/dev/layer67/hq/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
 
 # ----------- done -----------
 echo ""

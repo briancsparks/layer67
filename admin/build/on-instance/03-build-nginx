@@ -80,6 +80,9 @@ if ! which nginx > /dev/null; then
   sudo touch /var/log/nginx/error.log
   sudo chown -R www-data:www-data /var/log/nginx
 
+  # the pid file
+#  sudo touch /var/run/nginx.pid && sudo chown www-data:www-data $_
+
   cd
 
   # Make dirs
