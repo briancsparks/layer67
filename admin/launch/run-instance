@@ -68,6 +68,11 @@ cat  $userdata_src | head -1   > $userdata_file
 echo "export MCFLY=marty"     >> $userdata_file
 tail -n +2 $userdata_src      >> $userdata_file
 
+if [[ -n ssh-443 ]]; then
+  echo "perl -pi -e 's/^#?Port 22$/Port 443/' /etc/ssh/sshd_config"      >> $userdata_file
+  echo "service sshd restart || service ssh restart"                    >> $userdata_file
+fi
+
 echo "userdata:"
 cat $userdata_file
 
@@ -90,6 +95,8 @@ echo "image_id: $image_id"
 octets123="$(echo $ip | cut -d'.' -f1-3)"
 octet4="$(echo $ip | cut -d'.' -f4)"
 
+security_group_ids="$(echo $security_group_ids | tr ',' ' ')"
+
 set +e
 
 for octet4_offset in 0 1 2 3 4 5 6 7 8
@@ -99,9 +106,9 @@ do
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
       --key-name                "$key_name" \
-      --security-group-ids      "$security_group_ids" \
+      --security-group-ids      $security_group_ids \
       --iam-instance-profile    "$iam_instance_profile" \
-      --user-data               "$file://${userdata_file}" \
+      --user-data               "file://${userdata_file}" \
       --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
       --subnet-id               "$subnet_id" \
       --count                   "$count" \

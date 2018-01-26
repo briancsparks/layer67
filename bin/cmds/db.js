@@ -5,19 +5,53 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const AWS                     = require('aws-sdk');
+const helpers                 = require('../../lib/db');
 
 const argvGet                 = sg.argvGet;
 const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
+const query                   = helpers.query_;
 
-const dynamoDb                = new AWS.DynamoDB();
+const dynamoDb                = new AWS.DynamoDB({region: 'us-east-1'});
 
 var lib       = {};
 var subcmds   = {};
 
+lib['put-cluster-db'] = function(argv, context, callback) {
+  var   u             = sg.prepUsage();
+
+  const namespace     = argvGet(argv, 'namespace,ns');
+  const key           = argvGet(argv, 'key');
+  const set           = argvGet(argv, 'set');
+
+  console.log(key, set);
+
+  var result  = {};
+  var updates = {};
+
+  updates.Key = {id:{S:key}};
+  updates.ReturnValues = 'UPDATED_NEW';
+
+  const setParts = set.split('=');
+  _.each({[setParts[0]] : _.rest(setParts).join('=')}, (value, key) => {
+    updates.UpdateExpression           = `SET ${key}=:${key}`;
+    //updates.ExpressionAttributeValues  = sg.kv(':'+key, {S:value});
+    updates.ExpressionAttributeValues  = query({[':'+key] : sg.smartValue(value)});
+  });
+
+  updates.TableName = `${namespace}clusterDb`;
+  return dynamoDb.updateItem(updates, function(err, data) {
+    result.set  = updates;
+    result.data = data;
+
+    if (err) { console.error(err); return callback(err); }
+    return callback(null, result);
+  });
+};
+
 //...
-lib.put = lib.putCluster = lib['put-cluster'] = function(ARGV, context, callback) {
+lib.put = lib.putClusterDb = lib['put-cluster'] = function(ARGV, context, callback) {
 
   var   u             = sg.prepUsage();
   const subcmd        = argvGet(ARGV, u('subcommand,sub', '=over-miami', 'The sub-command to run')) || ARGV.args.shift();
