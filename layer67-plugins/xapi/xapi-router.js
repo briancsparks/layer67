@@ -46,6 +46,8 @@ const main = function() {
 
     // ---------- Verify user ----------
 
+    var   service;
+    var   serviceNames = [];
     return sg.__run([function(next) {
 
       // A header of X-Client-Verify means nginx was told to check client certs
@@ -62,6 +64,7 @@ const main = function() {
 
         // Now, look up the email in our DB
         return adminsDb.get(email, {}, function(err, result) {
+
           if (!sg.ok(err, result)) { return sg._403(req, res); }
 
           const role = deref(result, 'Item.rolerole.S');
@@ -78,8 +81,6 @@ const main = function() {
         return sg._400(req, res);
       }
 
-      var   serviceNames = [];
-
       if (parts.length >= 3) {
         // Try for the longer service name
         if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
@@ -91,8 +92,6 @@ const main = function() {
       }
 
       serviceNames.push('/'+parts[0]);
-
-      var service;
 
       // Now, simply see if anyone has registered for any of them
 
