@@ -20,7 +20,8 @@ my_ip="$(curl -sS 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 my_classb="$(echo $my_ip | cut -d'.' -f2)"
 my_subnet_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-id")"
 
-nsX="peach"
+ndX="$NAMESPACE"
+[[ -z $nsX ]] && nsX="peach"
 acctX="$dev_acct_num"
 
 instance_type="c5.large"
@@ -169,6 +170,8 @@ fi
 
 #agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 
+sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
+
 sshix $ip "cd ~/dev/layer67 && git pull"
 
 sshix $ip "cd ~/dev/layer67 && npm install --production || true"
@@ -176,6 +179,9 @@ sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl 
 
 echo "Waiting to let instance start listening..."
 sleep 5
+
+# ---------- Fix /etc/hosts ----------
+curl -sS "http://$ip:12340/etchosts?ip=10.91.16.4&name=redis"
 
 # ---------- Configure nginx ----------
 
