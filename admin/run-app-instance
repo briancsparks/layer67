@@ -11,6 +11,7 @@ if [[ $profile == prod ]]; then
   rel="prod"
 fi
 
-dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-web-launchconfig'}}")"
+dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-app-launchconfig'}}")"
 ${scripts_dir}/launch/run-instance "$(aws dynamodb get-item --table-name ${ns}clusterDb --key $dynamoKey | jq -r '.Item.cli.S')" "$@"
+
 

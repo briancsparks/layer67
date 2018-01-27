@@ -52,6 +52,8 @@ const main = function() {
 
       // A header of X-Client-Verify means nginx was told to check client certs
       if (req.headers['x-client-verify']) {
+        if (req.headers['x-client-verify'] !== 'SUCCESS') { return sg._403(req, res); }
+
         const serverSigner   = req.headers['x-client-i-dn'];
         const clientCryptoId = req.headers['x-client-s-dn'];
         const email          = (utils.parseClientCert(clientCryptoId || '') || {}).CN;
