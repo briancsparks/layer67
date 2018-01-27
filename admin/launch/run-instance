@@ -13,21 +13,32 @@
 #
 #
 
+dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
+
 my_mac0="$(curl -sS 'http://169.254.169.254/latest/meta-data/network/interfaces/macs/' | head -1)"
 my_ip="$(curl -sS 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 my_classb="$(echo $my_ip | cut -d'.' -f2)"
 my_subnet_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-id")"
 
+nsX="peach"
+acctX="$dev_acct_num"
+
 instance_type="c5.large"
 key_name="mario_demo"
 security_group_ids="sg-915eb6e6"
-iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/serverassist-cluster-ServerassistWebInstanceProfile-1MBW0Z6NQ29SO"
 user_data="file://${userdata_file}"
-ip="10.${my_classb}.2.9"
+ip="10.${my_classb}.3.9"
 subnet_id="$my_subnet_id"
 count=1
 
 eval "$(cli-shezargs $@)"
+
+[[ -z $acct   ]] && acct="$acctX"
+[[ -z $ns     ]] && ns="$nsX"
+
+if [[ -z $iam_instance_profile ]]; then
+  [[ -n $ns ]] && iam_instance_profile="Arn=arn:aws:iam::${acct}:instance-profile/${ns}-web-instance-role"
+fi
 
 wait_for_start() {
   local start="$SECONDS"
@@ -71,28 +82,18 @@ cat  $userdata_src | head -1   > $userdata_file
 echo "export MCFLY=marty"     >> $userdata_file
 tail -n +2 $userdata_src      >> $userdata_file
 
-#echo "touch /var/run/nginx.pid && chown www-data:www-data /var/run/nginx.pid"     >> $userdata_file
-
 if [[ -n $ssh_443 ]]; then
   echo "perl -pi -e 's/^#?Port 22$/Port 443/' /etc/ssh/sshd_config"     >> $userdata_file
   echo "service sshd restart || service ssh restart"                    >> $userdata_file
 fi
 
-echo "userdata:"
-cat $userdata_file
-
 # ----- Figure out the build number -----
 
-#cat /tmp/amis.json | jq -r --arg x "$abcd" '.Images[] | select( .Name | contains($x))'
-
 rm -f /tmp/amis.json
-dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
-echo "dev_acct_num: $dev_acct_num"
 aws ec2 describe-images --owners "$dev_acct_num" > /tmp/amis.json
 build_num="$(cat /tmp/amis.json | jq -r '.Images[].Name' | egrep 'layer67-base-' | cut -d- -f3 | sort -n | tail -1)"
 echo "build_num: $build_num"
 
-#image_id="$(cat /tmp/amis.json | jq -r '.Images[] | select( .Name == "layer67-base-18") | .ImageId')"
 image_id="$(cat /tmp/amis.json | jq -r --arg x "layer67-base-${build_num}" '.Images[] | select( .Name | contains($x)) | .ImageId')"
 echo "image_id: $image_id"
 
@@ -102,12 +103,18 @@ octet4="$(echo $ip | cut -d'.' -f4)"
 
 security_group_ids="$(echo $security_group_ids | tr ',' ' ')"
 
+if [[ $profile == prod ]]; then
+  assumed_acct="pub"
+  use_profile="--profile=prod"
+fi
+
 set +e
 
 for octet4_offset in 0 1 2 3 4 5 6 7 8
 do
 
-  echo aws ec2 run-instances \
+
+  echo aws-assumed-role "|$assumed_acct|" ec2 run-instances  \
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
       --key-name                "$key_name" \
@@ -118,7 +125,7 @@ do
       --subnet-id               "$subnet_id" \
       --count                   "$count"
 
-  aws ec2 run-instances \
+  aws-assumed-role "$assumed_acct" ec2 run-instances  \
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
       --key-name                "$key_name" \
@@ -137,6 +144,7 @@ do
 done
 
 set -e
+
 
 # Figure out what IP we ended up with
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
@@ -221,7 +229,7 @@ sshix $ip "sudo nginx -t && sudo nginx"
 # ----------- done -----------
 echo ""
 echo ""
-echo " terminate-instances $ip"
+echo " terminate-instances $use_profile $ip"
 
 
 # Notes:

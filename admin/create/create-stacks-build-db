@@ -7,9 +7,7 @@ eval "$(cli-shezargs $@)"
 [[ -z $rel     ]] && die "Need --rel="
 
 acct="084075158741"
-if [[ $rel == prod ]]; then
-  acct="244406501905"
-fi
+key_name="mario_demo"
 
 subnet_public_a="subnet-70083b3b"
 subnet_public_b="subnet-e17816bc"
@@ -27,21 +25,42 @@ sg_admin="sg-2745ad50"
 sg_util="sg-7358b004"
 sg_app="sg-f35bb384"
 
+if [[ $rel == prod ]]; then
+  acct="244406501905"
+  key_name="mario_prod"
+
+  subnet_public_a="subnet-e7a9c3c8"
+  subnet_public_b="subnet-bef1c2f5"
+  subnet_public_c="subnet-f49bbd90"
+  subnet_public_d="subnet-d4265aeb"
+
+  subnet_app_a="subnet-c3573dec"
+  subnet_app_b="subnet-3c0c3f77"
+  subnet_app_c="subnet-8d8aace9"
+  subnet_app_d="subnet-c1334ffe"
+
+  sg_wide="sg-c24aa2b5"
+  sg_web="sg-1a52ba6d"
+  sg_admin="sg-e459b193"
+  sg_util="sg-1354bc64"
+  sg_app="sg-4659b131"
+fi
+
 # Web tier
 instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-web-instance-role"
 
-lr put-cluster-db --ns=$ns --key=${rel}-a-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.0.10  --subnet-id=${subnet_public_a}"
-lr put-cluster-db --ns=$ns --key=${rel}-b-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.4.10  --subnet-id=${subnet_public_b}"
-lr put-cluster-db --ns=$ns --key=${rel}-c-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.8.10  --subnet-id=${subnet_public_c}"
-lr put-cluster-db --ns=$ns --key=${rel}-d-web-launchconfig --set=cli="--security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.12.10 --subnet-id=${subnet_public_d}"
+lr put-cluster-db --ns=$ns --key=${rel}-a-web-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.0.10  --subnet-id=${subnet_public_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-web-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.4.10  --subnet-id=${subnet_public_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-web-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.8.10  --subnet-id=${subnet_public_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-web-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_web},${sg_wide} $instance_profile --ip=10.${classb}.12.10 --subnet-id=${subnet_public_d}"
 
 # App tier
 instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-app-instance-role"
 
-lr put-cluster-db --ns=$ns --key=${rel}-a-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.16.32  --subnet-id=${subnet_app_a}"
-lr put-cluster-db --ns=$ns --key=${rel}-b-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.32.32  --subnet-id=${subnet_app_b}"
-lr put-cluster-db --ns=$ns --key=${rel}-c-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.48.32  --subnet-id=${subnet_app_c}"
-lr put-cluster-db --ns=$ns --key=${rel}-d-app-launchconfig --set=cli="--security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.64.32  --subnet-id=${subnet_app_d}"
+lr put-cluster-db --ns=$ns --key=${rel}-a-app-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.16.32  --subnet-id=${subnet_app_a}"
+lr put-cluster-db --ns=$ns --key=${rel}-b-app-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.32.32  --subnet-id=${subnet_app_b}"
+lr put-cluster-db --ns=$ns --key=${rel}-c-app-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.48.32  --subnet-id=${subnet_app_c}"
+lr put-cluster-db --ns=$ns --key=${rel}-d-app-launchconfig --set=cli="--key-name=$key_name --security-group-ids=${sg_app},${sg_wide} $instance_profile --ip=10.${classb}.64.32  --subnet-id=${subnet_app_d}"
 
 # Admin tier
 instance_profile="--iam-instance-profile=Arn=arn:aws:iam::${acct}:instance-profile/${ns}-admin-instance-role"

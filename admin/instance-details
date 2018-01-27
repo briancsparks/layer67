@@ -26,5 +26,7 @@ my_vpc_cidr="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfa
 my_vpc_cidr="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/vpc-id")"
 [[ -n $show ]] && echo "vpc: $my_vpc_cidr"
 
+dev_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'dev:[0-9]+' | cut -d':' -f2)"
+prod_acct_num="$(echo $JSAWS_AWS_ACCTS | egrep -o 'prod:[0-9]+' | cut -d':' -f2)"
 
 
