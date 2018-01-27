@@ -22,6 +22,7 @@
   "dependencies": {
     "aws-sdk": "^2.184.0",
     "difflet": "^1.0.1",
+    "redis": "^2.8.0",
     "run-anywhere": "^0.1.8",
     "sgsg": "^0.9.48",
     "tempy": "^0.2.1",
