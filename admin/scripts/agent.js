@@ -81,6 +81,14 @@ const main = function() {
 
 };
 
+const miniScript = function(script, uniq) {
+
+  const uniqFile = `/tmp/${uniq}-${process.pid}`;
+  sh.echo(script).to(uniqFile);
+  sh.chmod('a+x', uniqFile);
+  sh.exec(uniqFile, {silent:true});
+};
+
 const handleUpload = lib.handleUpload = function(req, res, callback) {
 
   var   form    = new formidable.IncomingForm();
@@ -185,6 +193,31 @@ cmds.put = function(req, res, url, restOfPath_) {
 
     /* otherwise */
     return sg._400(req, res);
+  });
+};
+
+lib.fixEtcHosts = function(argv, context, callback) {
+  const name  = argv.name;
+  const ip    = argv.ip;
+  const line  = `${ip} ${name}`;
+  const script = `
+if egrep -q ${name} /etc/hosts; then
+  sudo perl -pi -e 's/^.*${name}$/${line}/' /etc/hosts
+else
+  echo '${line}' | sudo tee -a /etc/hosts
+fi`;
+
+  miniScript(script, 'fixetchosts');
+
+  return callback(null, {});
+};
+
+cmds.etchosts = function(req, res, url, restOfPath_) {
+  const name  = url.query.name;
+  const ip    = url.query.ip;
+
+  return lib.fixEtcHosts({ip, name}, {}, function(err, result){
+    return sg._200(req, res, result);
   });
 };
 
