@@ -40,6 +40,7 @@ const main = function() {
       if (err) { return unhandled(req, res); }
 
       // TODO: get from db
+      console.log('HQ handling: '+req.url);
       return sg._200(req, res, {upstream:'prod.mobilewebassist.net/api/v1'});
     });
 
