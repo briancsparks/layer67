@@ -5,7 +5,7 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
-const utils                   = require('../../lib/utils');
+const redisUtils                   = require('../../lib/redis-utils');
 const http                    = require('http');
 const urlLib                  = require('url');
 const request                 = sg.extlibs.superagent;
@@ -58,8 +58,8 @@ const main = function() {
       tell();
       function tell() {
         setTimeout(tell, 15);
-        utils.tellService('/echo', `http://${ip}:${port}`, 30, function(err) {
-          utils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30, function(err) {
+        redisUtils.tellService('/echo', `http://${ip}:${port}`, 30, function(err) {
+          redisUtils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30, function(err) {
           });
         });
       };

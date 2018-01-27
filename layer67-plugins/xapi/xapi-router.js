@@ -5,7 +5,7 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
-const utils                   = require('../../lib/utils');
+const redisUtils              = require('../../lib/redis-utils');
 const http                    = require('http');
 const urlLib                  = require('url');
 const redisLib                = require('redis');
@@ -157,7 +157,7 @@ function getServices(name, callback) {
 }
 
 function getThreeHours() {
-  const current = utils.getHour();
+  const current = redisUtils.getHour();
   const prev    = current === 0 ? 23 : current -1;
   const next    = current === 23 ? 0 : current +1;
 
