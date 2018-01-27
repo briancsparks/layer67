@@ -18,35 +18,56 @@ const dynamoDb                = new AWS.DynamoDB({region: 'us-east-1'});
 var lib       = {};
 var subcmds   = {};
 
-lib['put-cluster-db'] = function(argv, context, callback) {
+lib.putDb = function(argv, context, callback) {
   var   u             = sg.prepUsage();
 
-  const namespace     = argvGet(argv, 'namespace,ns');
+  const namespace     = argvGet(argv, 'namespace,ns')     || process.env.NAMESPACE;
   const key           = argvGet(argv, 'key');
   const set           = argvGet(argv, 'set');
+  const dbName        = argvGet(argv, 'db-name,db');
 
-  console.log(key, set);
+  if (!key)           { return u.sage('key', 'Need a key.', callback); }
+  if (!set)           { return u.sage('set', 'Need a something to set.', callback); }
+  if (!dbName)        { return u.sage('db-name', 'Need a db.', callback); }
 
   var result  = {};
   var updates = {};
 
   updates.Key = {id:{S:key}};
-  updates.ReturnValues = 'UPDATED_NEW';
+  updates.ReturnValues = argvGet(argv, 'return-values') || 'UPDATED_NEW';
 
   const setParts = set.split('=');
   _.each({[setParts[0]] : _.rest(setParts).join('=')}, (value, key) => {
     updates.UpdateExpression           = `SET ${key}=:${key}`;
-    //updates.ExpressionAttributeValues  = sg.kv(':'+key, {S:value});
     updates.ExpressionAttributeValues  = query({[':'+key] : sg.smartValue(value)});
   });
 
-  updates.TableName = `${namespace}clusterDb`;
+  updates.TableName = `${namespace}${dbName}`;
   return dynamoDb.updateItem(updates, function(err, data) {
     result.set  = updates;
     result.data = data;
 
     if (err) { console.error(err); return callback(err); }
     return callback(null, result);
+  });
+};
+
+lib['put-cluster-db'] = function(argv, context, callback) {
+  var   u             = sg.prepUsage();
+
+  const namespace     = argvGet(argv, 'namespace,ns')     || process.env.NAMESPACE;
+  const key           = argvGet(argv, 'key');
+  const set           = argvGet(argv, 'set');
+
+  return lib.putDb(_.extend({dbName:'clusterDb'}, argv), context, function(err, result) {
+    return callback(err, result);
+  });
+};
+
+lib['put-admins-db'] = function(argv, context, callback) {
+
+  return lib.putDb(_.extend({dbName:'adminsDb'}, argv), context, function(err, result) {
+    return callback(err, result);
   });
 };
 

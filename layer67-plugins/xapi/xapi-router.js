@@ -6,6 +6,8 @@ const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
 const redisUtils              = require('../../lib/redis-utils');
+const utils                   = require('../../lib/utils');
+const adminsDb                = require('../../lib/admins-db');
 const http                    = require('http');
 const urlLib                  = require('url');
 const redisLib                = require('redis');
@@ -42,30 +44,58 @@ const main = function() {
     const url   = urlLib.parse(req.url, true);
     const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
-    if (parts.length === 0) {
-      return sg._400(req, res);
-    }
+    // ---------- Verify user ----------
 
-    var   serviceNames = [];
-
-    if (parts.length >= 3) {
-      // Try for the longer service name
-      if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
-        if (parts.length >= 4) {
-          serviceNames.push('/'+parts.slice(0, 4).join('/'));
-        }
-        serviceNames.push('/'+parts.slice(0, 3).join('/'));
-      }
-    }
-
-    serviceNames.push('/'+parts[0]);
-
-    var service;
-
-    // Now, simply see if anyone has registered for any of them
-
-    // TODO: check auth
     return sg.__run([function(next) {
+
+      // A header of X-Client-Verify means nginx was told to check client certs
+      if (req.headers['x-client-verify']) {
+        const serverSigner   = req.headers['x-client-i-dn'];
+        const clientCryptoId = req.headers['x-client-s-dn'];
+        const email          = (utils.parseClientCert(clientCryptoId || '') || {}).CN;
+
+        console.log(req.headers);
+
+        if (!serverSigner || !clientCryptoId || !email) {
+          return sg._403(req, res);
+        }
+
+        // Now, look up the email in our DB
+        return adminsDb.get(email, {}, function(err, result) {
+          if (!sg.ok(err, result)) { return sg._403(req, res); }
+
+          const role = deref(result, 'Item.rolerole.S');
+          if (role !== 'admin') { return sg._403(req, res); }
+
+          return next();
+        });
+      }
+
+      return next();
+
+    }, function(next) {
+      if (parts.length === 0) {
+        return sg._400(req, res);
+      }
+
+      var   serviceNames = [];
+
+      if (parts.length >= 3) {
+        // Try for the longer service name
+        if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
+          if (parts.length >= 4) {
+            serviceNames.push('/'+parts.slice(0, 4).join('/'));
+          }
+          serviceNames.push('/'+parts.slice(0, 3).join('/'));
+        }
+      }
+
+      serviceNames.push('/'+parts[0]);
+
+      var service;
+
+      // Now, simply see if anyone has registered for any of them
+
       return sg.__each(serviceNames, function(serviceName, next) {
         return getServices(serviceName, (err, services) => {
           if (!sg.ok(err, services)) { return next(); }
