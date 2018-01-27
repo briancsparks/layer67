@@ -212,7 +212,7 @@ push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')"
 push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
 
 
-sshix $ip "cd ~/dev/layer67/hq/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
 
 # ----------- start nginx ----------
