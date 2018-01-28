@@ -15,7 +15,7 @@ for ip in "$@"; do
   echo "--- $ip"
   instance_id="$(sshix $ip 'curl -sS http://169.254.169.254/latest/meta-data/instance-id')"
 
-  aws-assumed-role "$assumed_acct" ec2 terminate-instances --instance-ids $instance_id
+  ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 terminate-instances --instance-ids $instance_id
 
 done
 

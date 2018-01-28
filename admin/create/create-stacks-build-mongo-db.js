@@ -93,10 +93,16 @@ const main = async function() {
 
       const layer67Ami  = _.last(_.sortBy(_.filter(result.devImages.Images, i => /^layer67/.exec(i.Name)), 'Name'));
       const vpcSgs      = _.filter(result.devSecurityGroups.SecurityGroups, sg => sg.VpcId === vpcs.dev);
-      const vpcSubnets  = _.filter(result.devSubnets.Subnets, sn => sn.VpcId === vpcs.dev);
+      var   vpcSubnets  = _.filter(result.devSubnets.Subnets, sn => sn.VpcId === vpcs.dev);
 
-      //console.log(util.inspect(_.pick(vpcSubnets, 'CidrBlock', 'SubnetId'), {depth:null, colors:true}));
       console.log(util.inspect(_.map(vpcSubnets, subnet => _.pick(subnet, 'CidrBlock', 'SubnetId')), {depth:null, colors:true}));
+
+      vpcSubnets  = _.filter(result.prodSubnets.Subnets, sn => sn.VpcId === vpcs.prod);
+
+      console.log(util.inspect(_.map(vpcSubnets, subnet => _.pick(subnet, 'CidrBlock', 'SubnetId')), {depth:null, colors:true}));
+
+
+
 
       var i = 0;
 

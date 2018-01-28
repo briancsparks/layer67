@@ -115,7 +115,7 @@ for octet4_offset in 0 1 2 3 4 5 6 7 8
 do
 
 
-  echo aws-assumed-role "|$assumed_acct|" ec2 run-instances  \
+  echo ${scripts_dir}/aws-assumed-role "|$assumed_acct|" ec2 run-instances  \
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
       --key-name                "$key_name" \
@@ -126,7 +126,7 @@ do
       --subnet-id               "$subnet_id" \
       --count                   "$count"
 
-  aws-assumed-role "$assumed_acct" ec2 run-instances  \
+  ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 run-instances  \
       --image-id                "$image_id" \
       --instance-type           "$instance_type" \
       --key-name                "$key_name" \
