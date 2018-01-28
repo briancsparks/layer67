@@ -189,7 +189,7 @@ curl -sS "http://$ip:12340/etchosts?ip=10.12.21.4&name=redis"
 curl -sS "http://$ip:12340/etchosts?ip=10.12.21.229&name=db"
 
 # ----------- Try to host a special FQDN ---------
-if [[ -n $fqnd ]]; then
+if [[ -n $fqdn ]]; then
   # ---------- Configure nginx ----------
 
   # Setup for the following FQDNs
@@ -213,6 +213,8 @@ if [[ -n $fqnd ]]; then
   push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
   push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
   push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
+
+  sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
   # ----------- start nginx ----------
   sshix $ip "sudo nginx -t && sudo nginx"
