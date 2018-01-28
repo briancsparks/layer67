@@ -188,7 +188,37 @@ sleep 5
 curl -sS "http://$ip:12340/etchosts?ip=10.12.21.4&name=redis"
 curl -sS "http://$ip:12340/etchosts?ip=10.12.21.229&name=db"
 
-if [[ $stack == cluster && $tier == web ]]; then
+# ----------- Try to host a special FQDN ---------
+if [[ -n $fqnd ]]; then
+  # ---------- Configure nginx ----------
+
+  # Setup for the following FQDNs
+  curl -sS "http://$ip:12340/root-config"
+  curl -sS "http://$ip:12340/server-config?fqdn=${fqdn}&port=5779&client_certs=1&https=1"
+
+  # ---------- Get the nginx conf files ----------
+
+  # =======================================================================
+  # And push the needed certs
+  announce "Pushing certs to server"
+  # =======================================================================
+
+  # ----- An Arbitrary FQDN
+  printf "\n           %s\n" "${fqdn}"
+
+  curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${fqdn}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+  cat /tmp/config.json | jq '.' || true
+  printf "\n\n"
+
+  push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
+  push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
+  push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
+
+  # ----------- start nginx ----------
+  sshix $ip "sudo nginx -t && sudo nginx"
+
+
+elif [[ $stack == cluster && $tier == web ]]; then
   # ---------- Configure nginx ----------
 
   # Setup for the following FQDNs
