@@ -1,4 +1,13 @@
 
+Cleaning up After Simplifying
+=============================
+
+And ejecting dynamoDb!
+
+* All 5 run-instances need to be finally un-dynamoDb-ified.
+* ec2Instance.js works great, tho.
+* Still have not confimed build-instance still works.
+
 Next Milestone
 ==============
 
