@@ -109,43 +109,47 @@ if [[ $profile == prod ]]; then
   use_profile="--profile=prod"
 fi
 
-set +e
+#set +e
+#
+#for octet4_offset in 0 1 2 3 4 5 6 7 8
+#do
+#
+#
+#  echo ${scripts_dir}/aws-assumed-role "|$assumed_acct|" ec2 run-instances  \
+#      --image-id                "$image_id" \
+#      --instance-type           "$instance_type" \
+#      --key-name                "$key_name" \
+#      --security-group-ids      $security_group_ids \
+#      --iam-instance-profile    "$iam_instance_profile" \
+#      --user-data               "file://${userdata_file}" \
+#      --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
+#      --subnet-id               "$subnet_id" \
+#      --count                   "$count"
+#
+#  ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 run-instances  \
+#      --image-id                "$image_id" \
+#      --instance-type           "$instance_type" \
+#      --key-name                "$key_name" \
+#      --security-group-ids      $security_group_ids \
+#      --iam-instance-profile    "$iam_instance_profile" \
+#      --user-data               "file://${userdata_file}" \
+#      --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
+#      --subnet-id               "$subnet_id" \
+#      --count                   "$count" \
+#        > /tmp/run-instance-result.json
+#
+#  result="$?"
+#  echo $result
+#  [[ $result == 0 ]] && break
+#
+#done
+#
+#set -e
 
-for octet4_offset in 0 1 2 3 4 5 6 7 8
-do
+[[ -z $stack    ]] && die "Need --stack="
+[[ -z $tier     ]] && die "Need --tier="
 
-
-  echo ${scripts_dir}/aws-assumed-role "|$assumed_acct|" ec2 run-instances  \
-      --image-id                "$image_id" \
-      --instance-type           "$instance_type" \
-      --key-name                "$key_name" \
-      --security-group-ids      $security_group_ids \
-      --iam-instance-profile    "$iam_instance_profile" \
-      --user-data               "file://${userdata_file}" \
-      --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
-      --subnet-id               "$subnet_id" \
-      --count                   "$count"
-
-  ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 run-instances  \
-      --image-id                "$image_id" \
-      --instance-type           "$instance_type" \
-      --key-name                "$key_name" \
-      --security-group-ids      $security_group_ids \
-      --iam-instance-profile    "$iam_instance_profile" \
-      --user-data               "file://${userdata_file}" \
-      --private-ip-address      "${octets123}.$((${octet4} - ${octet4_offset}))" \
-      --subnet-id               "$subnet_id" \
-      --count                   "$count" \
-        > /tmp/run-instance-result.json
-
-  result="$?"
-  echo $result
-  [[ $result == 0 ]] && break
-
-done
-
-set -e
-
+ra invoke lib/ec2Instance.js runInstances --name="peach-${stack}-${tier}" > /tmp/run-instance-result.json
 
 # Figure out what IP we ended up with
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
@@ -181,58 +185,61 @@ echo "Waiting to let instance start listening..."
 sleep 5
 
 # ---------- Fix /etc/hosts ----------
-curl -sS "http://$ip:12340/etchosts?ip=10.91.16.4&name=redis"
+curl -sS "http://$ip:12340/etchosts?ip=10.12.21.4&name=redis"
+curl -sS "http://$ip:12340/etchosts?ip=10.12.21.229&name=db"
 
-# ---------- Configure nginx ----------
+if [[ $stack == cluster && $tier == web ]]; then
+  # ---------- Configure nginx ----------
 
-# Setup for the following FQDNs
-curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&https=1"
-#curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebprint.net&client_certs=1&use_https=1"
-#curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewexprint.net&client_certs=1&use_https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&https=1"
+  # Setup for the following FQDNs
+  curl -sS "http://$ip:12340/root-config"
+  curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&https=1"
+  #curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebprint.net&client_certs=1&use_https=1"
+  #curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewexprint.net&client_certs=1&use_https=1"
+  curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&https=1"
 
-# ---------- Get the nginx conf files ----------
+  # ---------- Get the nginx conf files ----------
 
-# =======================================================================
-# And push the needed certs
-announce "Pushing certs to server"
-# =======================================================================
+  # =======================================================================
+  # And push the needed certs
+  announce "Pushing certs to server"
+  # =======================================================================
 
-# ----- l67console.mobilesebassist.net
-printf "\n           %s\n" "l67console.mobilewebassist.net"
+  # ----- l67console.mobilesebassist.net
+  printf "\n           %s\n" "l67console.mobilewebassist.net"
 
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
-cat /tmp/config.json | jq '.' || true
-printf "\n\n"
+  curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+  cat /tmp/config.json | jq '.' || true
+  printf "\n\n"
 
-# /etc/nginx/certs/l67console.mobilewebassist.net.cer
-fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
-#echo ra invoke `fn ~/dev 'crypto-kms\.js$'` pushCertToServer --ip=$ip --fullpath=$fullpath
+  # /etc/nginx/certs/l67console.mobilewebassist.net.cer
+  fullpath="$(cat /tmp/config.json | jq -r '.certfile')"
+  #echo ra invoke `fn ~/dev 'crypto-kms\.js$'` pushCertToServer --ip=$ip --fullpath=$fullpath
 
-push_cert_to_server "ssh_cert"      "$fullpath" "$ip"
-push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
-push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
+  push_cert_to_server "ssh_cert"      "$fullpath" "$ip"
+  push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
+  push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
 
-sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+  sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
-# ----- l67hq.mobilesebassist.net
-printf "\n           %s\n" "l67hq.mobilewebassist.net"
+  # ----- l67hq.mobilesebassist.net
+  printf "\n           %s\n" "l67hq.mobilewebassist.net"
 
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
-cat /tmp/config.json | jq '.' || true
-printf "\n\n"
+  curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+  cat /tmp/config.json | jq '.' || true
+  printf "\n\n"
 
-push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
-push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
-push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
-
-
-sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+  push_cert_to_server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
+  push_cert_to_server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
+  push_cert_to_server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
 
 
-# ----------- start nginx ----------
-sshix $ip "sudo nginx -t && sudo nginx"
+  sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+
+  # ----------- start nginx ----------
+  sshix $ip "sudo nginx -t && sudo nginx"
+fi
 
 # ----------- done -----------
 echo ""

@@ -6,12 +6,9 @@ ns="$NAMESPACE"
 
 [[ -z $ns ]] && die "Need --namespace="
 
-rel="dev"
-if [[ $profile == prod ]]; then
-  rel="prod"
-fi
+${scripts_dir}/launch/run-instance --stack=cluster --tier=web "$@"
 
-dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-cluster-launchconfig'}}")"
-${scripts_dir}/launch/run-instance "$(aws dynamodb get-item --table-name ${ns}clusterDb --key $dynamoKey | jq -r '.Item.cli.S')" "$@"
+#dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-cluster-launchconfig'}}")"
+#${scripts_dir}/launch/run-instance "$(aws dynamodb get-item --table-name ${ns}clusterDb --key $dynamoKey | jq -r '.Item.cli.S')" "$@"
 
 

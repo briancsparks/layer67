@@ -9,9 +9,8 @@ if [[ $profile == prod ]]; then
   use_profile="--profile=sabuildout"
 fi
 
-fqdn_dash="fqdn-$(echo $fqdn | tr '.' '-')"
 instance_id="$(sshix $ip 'curl -sS http://169.254.169.254/latest/meta-data/instance-id')"
-eip="$(aws dynamodb get-item --table-name peachclusterDb --key "$(json-switch-quotes "{'id':{'S':'$fqdn_dash'}}")" | jq -r '.Item.eip.S')"
+eip="$(ra invoke "$(fn ~/dev/ ec2Instance\.js$)" eipForFqdn --fqdn="$fqdn" | jq -r '.eip')"
 
 aws ec2 associate-address $use_profile --allocation-id=$eip --instance-id=$instance_id --private-ip-address=$ip --allow-reassociation
 
