@@ -8,6 +8,12 @@ And ejecting dynamoDb!
 * ec2Instance.js works great, tho.
 * Still have not confimed build-instance still works.
 
+
+clean:
+
+* do not git pull any src on run
+* Look at all the calls to abort(), they should send err
+
 Next Milestone
 ==============
 

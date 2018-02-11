@@ -1,5 +1,15 @@
 #!/bin/bash -e
 
+#
+# Terminates Instances by internal IP
+#
+#   terminate-instances 1.2.3.4 1.2.3.5 1.2.3.6
+#
+# 1. Logs into instance via ssh, to run the z01-pre-terminate script.
+# 2. Gets the instance-id (by ssh to the instance and getting instance-data), and
+#    uses AWS cli to terminate by instance-id
+#
+
 eval "$(cli-shezargs $@)"
 
 if [[ $profile == prod ]]; then

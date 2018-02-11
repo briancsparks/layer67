@@ -2,13 +2,14 @@
 
 eval "$(cli-shezargs $@)"
 
+die "This script does not really work; use run-web-instance --stack=cluster..."
+
 ns="$NAMESPACE"
 
-[[ -z $ns ]] && die "Need --namespace="
+[[ -z $ns       ]] && die "Need --namespace="
+[[ -z $color    ]] && die "Need --color"
 
-${scripts_dir}/launch/run-instance --stack=cluster --tier=web "$@"
+${scripts_dir}/launch/run-instance --stack=cluster --tier=web --color=$color "$@"
 
-#dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-cluster-launchconfig'}}")"
-#${scripts_dir}/launch/run-instance "$(aws dynamodb get-item --table-name ${ns}clusterDb --key $dynamoKey | jq -r '.Item.cli.S')" "$@"
 
 

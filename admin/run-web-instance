@@ -4,10 +4,10 @@ eval "$(cli-shezargs $@)"
 
 ns="$NAMESPACE"
 
-[[ -z $ns ]] && die "Need --namespace="
+[[ -z $ns     ]] && die "Need --namespace="
+[[ -z $color  ]] && die "Need --color="
+[[ -z $stack  ]] && die "Need --stack="
 
-${scripts_dir}/launch/run-instance --stack=dev --tier=web "$@"
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
 
-#dynamoKey="$(json-switch-quotes "{'id':{'S':'${rel}-a-web-launchconfig'}}")"
-#${scripts_dir}/launch/run-instance "$(aws dynamodb get-item --table-name ${ns}clusterDb --key $dynamoKey | jq -r '.Item.cli.S')" "$@"
 

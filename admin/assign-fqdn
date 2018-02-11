@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+# TODO: use aws-assumed-role
+
 eval "$(cli-shezargs $@)"
 
 [[ -n $ip   ]] || die "Need --ip="

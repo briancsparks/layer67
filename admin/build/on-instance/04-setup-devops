@@ -8,6 +8,41 @@ ann_sect() {
   echoerr '~~~annsect~~~' "(($1))" "(($2))"
 }
 
+# ---------- NeoVIM ----------
+if ! which nvim >/dev/null; then
+  sudo apt-get install software-properties-common
+#  sudo apt-get install python-software-properties
+
+  sudo add-apt-repository ppa:neovim-ppa/stable
+  sudo apt-get update
+  sudo apt-get install neovim
+
+  sudo apt-get install python-dev python-pip python3-dev python3-pip
+
+  sudo update-alternatives --install /usr/bin/vi vi /usr/bin/nvim 60
+  sudo update-alternatives --config vi
+  sudo update-alternatives --install /usr/bin/editor editor /usr/bin/nvim 60
+  sudo update-alternatives --config editor
+
+  # You could hijack 'vim' ->> 'nvim' with this, if you wanted:
+  #sudo update-alternatives --install /usr/bin/vim vim /usr/bin/nvim 60
+  #sudo update-alternatives --config vim
+
+  # Installing Plug
+  curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+  mkdir -p ~/.config/nvim/init.vim
+  echo ""                               > ~/.config/nvim/init.vim
+  echo "call plug#begin()"             >> ~/.config/nvim/init.vim
+  echo "Plug 'tpope/vim-sensible'"     >> ~/.config/nvim/init.vim
+  echo "call plug#end()"               >> ~/.config/nvim/init.vim
+  echo ""                              >> ~/.config/nvim/init.vim
+
+  sudo -H pip3 install neovim
+  sudo -H pip3 install --upgrade neovim
+
+fi
+
 # ---------- Dotfiles ----------
 if ! [[ -d $HOME/dotfiles ]]; then
 
@@ -36,5 +71,9 @@ if ! [[ -f /usr/local/bin/hr ]]; then
   ann_sect "Setup hr" "hr"
   curl -sL https://raw.githubusercontent.com/LuRsT/hr/master/hr | sudo tee /usr/local/bin/hr > /dev/null
   sudo chmod +x /usr/local/bin/hr
+fi
+
+if ! [[ -f /usr/local/bin/ack ]]; then
+  curl -s -L 'http://beyondgrep.com/ack-2.10-single-file' > /tmp/ack && sudo cp /tmp/ack /usr/local/bin/ack && sudo chmod 0755 /usr/local/bin/ack
 fi
 
