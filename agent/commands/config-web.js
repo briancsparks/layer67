@@ -250,6 +250,7 @@ lib.buildServerConfig = function() {
     const fqdnParts           = fqdn.split('.');
     const domainName          = _.last(fqdnParts, 2).join('.');
     const siteName            = _.first(_.last(fqdnParts, 2));
+    const siteProject         = siteName.replace(/mobiledev/i, 'mobileweb');
     const fileFqdn            = fqdn.replace(/[^a-z0-9]+/gi, '-');
 
     const wwwroot             = path.join(process.env.HOME, 'www', fileFqdn, 'webroot');
@@ -268,7 +269,7 @@ lib.buildServerConfig = function() {
 
     // ssl_client_certificate /etc/nginx/certs/mobilewebassist_root_client_ca.crt
     const requireClientCerts  = argvGet(argv, 'client-certs,client');
-    const clientCert          = requireClientCerts                    && (argvGet(argv, 'client-cert,client')   || path.join('/etc/nginx/certs', siteName+'_root_client_ca.crt'));
+    const clientCert          = requireClientCerts                    && (argvGet(argv, 'client-cert,client')   || path.join('/etc/nginx/certs', siteProject+'_root_client_ca.crt'));
 
     var   configJson_          = {};
 
