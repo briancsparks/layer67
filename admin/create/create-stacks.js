@@ -28,13 +28,13 @@
  *    The following command will build the full stack described above (to be
  *    called 'toad', with the 2 VPCs at 10.100.0.0/16 and 10.101.0.0/16.)
  *
- *        ra invoke lib/commands/create-stacks.js createStacks --stack=toad --b=100 --bt=101
+ *        ra invoke `fn ~/dev 'create-stacks\.js$'` createStacks --stack=toad --b=100 --bt=101
  *
  *
  *    You can invoke create-stacks to do less work (to make it easier/faster to
  *    debug and develop the buildout scripts, for example.)
  *
- *        ra invoke lib/commands/create-stacks.js createStacks --stack=toad --b=100 --bt=101 --quick --skip-2 --dry-run
+ *        ra invoke `fn ~/dev 'create-stacks\.js$'` createStacks --stack=toad --b=100 --bt=101 --quick --skip-2 --dry-run
  *
  *          --quick           do the minimal amount of work to excercise the whole system.
  *          --skip-2          do not do the 2nd half of the script (peering the VPCs.)
@@ -43,6 +43,7 @@
  *
  *    Often times, you must delete the stacks you just built up:
  *        aws cloudformation delete-stack --stack-name toadPeering   && aws cloudformation delete-stack --stack-name toad --profilePeering sabuildout
+ *        ... manually delete the peering connection
  *        aws cloudformation delete-stack --stack-name toad          && aws cloudformation delete-stack --stack-name toad --profile sabuildout
  *
  */
@@ -50,7 +51,7 @@ const sg                      = require('sgsg');
 const _                       = sg._;
 const raLib                   = sg.include('run-anywhere') || require('run-anywhere');
 const AWS                     = require('aws-sdk');
-const awsService              = require('../aws-creds').awsService;
+const awsService              = require('../../lib/aws-creds').awsService;
 const fs                      = sg.extlibs.fsExtra;
 const util                    = require('util');
 const tempy                   = require('tempy');
