@@ -1,0 +1,44 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+# ---------- NeoVIM ----------
+if ! which nvim >/dev/null; then
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
+#  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-software-properties
+
+  sudo DEBIAN_FRONTEND=noninteractive add-apt-repository ppa:neovim-ppa/stable
+  sudo DEBIAN_FRONTEND=noninteractive apt-add-repository ppa:brightbox/ruby-ng
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y neovim ruby2.2 ruby-switch python-dev python-pip python3-dev python3-pip
+
+#  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev python-pip python3-dev python3-pip
+
+#  sudo update-alternatives --install /usr/bin/vi vi /usr/bin/nvim 60
+#  sudo update-alternatives --config vi
+#  sudo update-alternatives --install /usr/bin/editor editor /usr/bin/nvim 60
+#  sudo update-alternatives --config editor
+
+  # You could hijack 'vim' ->> 'nvim' with this, if you wanted:
+  #sudo update-alternatives --install /usr/bin/vim vim /usr/bin/nvim 60
+  #sudo update-alternatives --config vim
+
+  # Installing Plug
+  curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+  mkdir -p ~/.config/nvim
+  echo ""                               > ~/.config/nvim/init.vim
+  echo "call plug#begin()"             >> ~/.config/nvim/init.vim
+  echo "Plug 'tpope/vim-sensible'"     >> ~/.config/nvim/init.vim
+  echo "call plug#end()"               >> ~/.config/nvim/init.vim
+  echo ""                              >> ~/.config/nvim/init.vim
+
+  sudo -H pip3 install neovim
+  sudo -H pip3 install --upgrade neovim
+
+  npm install -g neovim
+
+  sudo ruby-switch --set ruby2.2
+fi
+
+
