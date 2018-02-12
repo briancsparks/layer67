@@ -42,7 +42,7 @@
  *
  *
  *    Often times, you must delete the stacks you just built up:
- *        aws cloudformation delete-stack --stack-name toadPeering   && aws cloudformation delete-stack --stack-name toad --profilePeering sabuildout
+ *        aws cloudformation delete-stack --stack-name toadPeering   && aws cloudformation delete-stack --stack-name toadPeering --profile sabuildout
  *        ... manually delete the peering connection
  *        aws cloudformation delete-stack --stack-name toad          && aws cloudformation delete-stack --stack-name toad --profile sabuildout
  *
