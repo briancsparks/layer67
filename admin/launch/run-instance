@@ -326,6 +326,8 @@ fi
 echo ""
 echo ""
 echo " terminate-instances $use_profile $ip"
+echo ""
+echo " sshix $ip"
 
 
 # Notes:

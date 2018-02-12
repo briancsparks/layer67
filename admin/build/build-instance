@@ -1,20 +1,27 @@
 #!/bin/bash -e
 
+#
+# For building, we just use the same subnet, etc as the machine doing the build.
+# But the caller can override
+#
+#
+
 my_mac0="$(curl -sS 'http://169.254.169.254/latest/meta-data/network/interfaces/macs/' | head -1)"
 my_ip="$(curl -sS 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 my_classb="$(echo $my_ip | cut -d'.' -f2)"
 my_subnet_id="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/subnet-id")"
+my_security_group_ids="$(curl -sS "http://169.254.169.254/latest/meta-data/network/interfaces/macs/${my_mac0}/security-group-ids" | tr '\n' ',')"
 
 nsX="peach"
 
 instance_type="c5.xlarge"
 key_name="mario_demo"
-security_group_ids="sg-915eb6e6"
+security_group_ids="${my_security_group_ids}"
 iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/${nsX}-web-instance-role"
 #user_data="file://${userdata_file}"
 ip="10.${my_classb}.2.9"
 subnet_id="$my_subnet_id"
-image_id="ami-41e0b93b"
+image_id="ami-0b383171"
 count=1
 
 eval "$(cli-shezargs $@)"
@@ -65,6 +72,7 @@ wait_for_ami() {
 }
 
 
+# Dump the ec2 params
 aws_ec2() {
   #echoerr aws ec2 "$@"
 
@@ -81,10 +89,10 @@ aws_ec2() {
 # From: https://cloud-images.ubuntu.com/locator/ec2/
 # N.Virginia -- Search with 'us-east hvm ebs-ssd amd64 lts'
 #
-# This list fetched 01/10/2018
+# This list fetched 02/11/2018
 #
-# us-east-1  xenial   16.04 LTS  amd64  hvm:ebs-ssd  20180109  ami-41e0b93b  hvm
-# us-east-1  trusty   14.04 LTS  amd64  hvm:ebs-ssd  20171208  ami-764a210c  hvm
+# us-east-1  xenial   16.04 LTS  amd64  hvm:ebs-ssd  20180205  ami-0b383171  hvm
+# us-east-1  trusty   14.04 LTS  amd64  hvm:ebs-ssd  20180201  ami-a22323d8  hvm
 # us-east-1  precise  12.04 LTS  amd64  hvm:ebs-ssd  20170502  ami-a04529b6  hvm
 
 os_name="xenial"
@@ -136,6 +144,8 @@ ip_for_filename="$(echo $ip | tr '.' '-')"
 uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
 cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
+
+
 echo "===================================================================================="
 echo " Bootstrapping $ip"
 echo "===================================================================================="
@@ -143,6 +153,8 @@ echo "==========================================================================
 wait_for_start $ip
 
 ${scripts_dir}/01-bootstrap --ip=$ip
+
+
 
 echo "===================================================================================="
 echo " Starting Listener to push scripts"
@@ -154,6 +166,8 @@ sshix $ip "cd local/scripts && node agent.js --port=${agent_port} --ip=$ip --col
 
 # Stall
 sleep 5
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #skip_basic=1
 if [[ -z $skip_basic ]]; then
@@ -167,6 +181,8 @@ if [[ -z $skip_basic ]]; then
   cat "/tmp/setup-instance-basics-${ip_for_filename}.json" | jq '.' || true
 
 fi
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #skip_nginx=1
 if [[ -z $skip_nginx ]]; then
@@ -186,6 +202,8 @@ if [[ -z $skip_nginx ]]; then
 
 fi
 
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #skip_devops=1
 if [[ -z $skip_devops ]]; then
 
@@ -199,13 +217,13 @@ if [[ -z $skip_devops ]]; then
 
 fi
 
-
 # The agent server is still running, so send it a signal to shutdown
 curl -sS "http://${ip}:${agent_port}/exit" | jq '.'
 
 wait
 
 
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #skip_finish_buildout=1
 if [[ -z $skip_finish_buildout ]]; then
@@ -236,6 +254,8 @@ if [[ -z $skip_finish_buildout ]]; then
 
 fi
 
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #skip_ami=1
 if [[ -z $skip_ami ]]; then
@@ -299,19 +319,25 @@ else
   fi
 fi
 
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 # ---------- Notes for the user ----------
 if [[ -z $terminated ]]; then
+  echo ""
   echo "To terminate instance:"
   echo "  aws ec2 terminate-instances --instance-ids $instance_id"
   echo "or:"
   echo "  terminate-instances $ip"
   echo ""
-  echo ""
-  echo "  sshix $ip"
 fi
 
 #cat /tmp/run-instance-result.json | jq '.'
 echo "Instance data is at $uniq_log_filename"
 echo "  cat $uniq_log_filename | jq '.'"
+
+if [[ -z $terminated ]]; then
+  echo ""
+  echo "  sshix $ip"
+fi
 
 
