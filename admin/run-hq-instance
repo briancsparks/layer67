@@ -1,0 +1,67 @@
+#!/bin/bash -e
+
+stack="cluster"
+
+eval "$(cli-shezargs $@)"
+
+ns="$NAMESPACE"
+
+[[ -z $ns     ]] && die "Need --namespace="
+[[ -z $color  ]] && die "Need --color="
+[[ -z $stack  ]] && die "Need --stack="
+
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
+
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+
+# ---------- Configure nginx ----------
+
+# Setup for the following FQDNs
+curl -sS "http://$ip:12340/root-config"
+curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&https=1"
+
+# ---------- Get the nginx conf files ----------
+
+# =======================================================================
+# And push the needed certs
+announce "Pushing certs to server"
+# =======================================================================
+
+# ----- l67console.mobilesebassist.net
+#printf "\n           %s\n" "l67console.mobilewebassist.net"
+
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+#cat /tmp/config.json | jq '.' || true
+#printf "\n\n"
+
+push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
+push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
+push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
+
+sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ---------- Once you want to assign the FQDN, it would be this ----------
+#${scripts_dir}/../assign-fqdn --fqdn=l67console.mobilewebassist.net --ip=${ip}
+
+
+# ----- l67hq.mobilesebassist.net
+#printf "\n           %s\n" "l67hq.mobilewebassist.net"
+
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+#cat /tmp/config.json | jq '.' || true
+#printf "\n\n"
+
+push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
+push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
+push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
+
+sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ---------- Once you want to assign the FQDN, it would be this ----------
+#${scripts_dir}/../assign-fqdn --fqdn=l67hq.mobilewebassist.net --ip=${ip}
+
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+

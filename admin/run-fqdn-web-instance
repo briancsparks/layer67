@@ -1,0 +1,43 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+ns="$NAMESPACE"
+
+[[ -z $ns     ]] && die "Need --namespace="
+[[ -z $color  ]] && die "Need --color="
+[[ -z $stack  ]] && die "Need --stack="
+[[ -z $fqdn   ]] && die "Need --fqdn="
+
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} --fqdn=${fqdn} "$@"
+
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+
+# ---------- Configure nginx ----------
+
+# Setup for the following FQDNs
+curl -sS "http://$ip:12340/root-config"
+curl -sS "http://$ip:12340/server-config?fqdn=${fqdn}&port=5779&client_certs=1&https=1"
+
+# ---------- Get the nginx conf files ----------
+
+# =======================================================================
+# And push the needed certs
+announce "Pushing certs to server"
+# =======================================================================
+
+# ----- An Arbitrary FQDN
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${fqdn}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+
+push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
+push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
+push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
+
+sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ---------- Must assign the special FQDN ----------
+${scripts_dir}/assign-fqdn --fqdn=${fqdn} --ip=${ip}
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+

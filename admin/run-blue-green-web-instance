@@ -1,0 +1,47 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+ns="$NAMESPACE"
+
+[[ -z $ns     ]] && die "Need --namespace="
+[[ -z $color  ]] && die "Need --color="
+[[ -z $stack  ]] && die "Need --stack="
+
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
+
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+
+# ---------- Configure nginx ----------
+
+# Setup for the following FQDNs
+curl -sS "http://$ip:12340/root-config"
+curl -sS "http://$ip:12340/server-config?fqdn=${color}-test.mobiledevassist.net&port=5778&client_certs=1&https=1"
+
+# ---------- Get the nginx conf files ----------
+
+# =======================================================================
+# And push the needed certs
+announce "Pushing certs to server"
+# =======================================================================
+
+# ----- color-test.mobilesebassist.net
+printf "\n           %s\n" "${color}-test.mobiledevassist.net"
+
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-test.mobiledevassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+cat /tmp/config.json | jq '.' || true
+printf "\n\n"
+
+${scripts_dir}/push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
+${scripts_dir}/push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
+${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
+
+sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ---------- Must assign the *other* color (it will be switched once testing passes) ----------
+[[ $color == blue ]] && color2="teal" || color2="blue"
+${scripts_dir}/assign-fqdn --fqdn="${color2}-test.mobiledevassist.net" --ip=$ip
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+
