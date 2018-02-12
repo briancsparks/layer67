@@ -37,7 +37,7 @@
  *        ra invoke lib/commands/create-stacks.js createStacks --stack=toad --b=100 --bt=101 --quick --skip-2 --dry-run
  *
  *          --quick           do the minimal amount of work to excercise the whole system.
- *          --skip-2          so not do the 2nd half of the script (peering the VPCs.)
+ *          --skip-2          do not do the 2nd half of the script (peering the VPCs.)
  *          --dry-run         do not call the CloudFormation createStack() API
  *
  *
@@ -712,7 +712,7 @@ lib.createStackTemplates = function() {
       if (!quick) {
 
         // ---------- admin sg ----------
-        addSgRule([dev, prod], 'sgAdmin', sgRule('tcp', 22,  22,  '0.0.0.0/0'));      // TODO: remove this
+        addSgRule([dev, prod], 'sgAdmin', sgRule('tcp', 22,  22,  '0.0.0.0/0'));
 
         _.each(sshCidrs, cidr => {
           addSgRule([dev, prod], 'sgAdmin', sgRule('tcp', 22, 22, cidr));
@@ -789,8 +789,8 @@ lib.createStackTemplates = function() {
 
       if (!quick) {
         //addDynamo(dev, 'clusterDb', 2, 2, {hash:{id:'S'}, range:{type:'S'}});     // The string used as a label for AWS (ImageId, InstanceId, etc.)
-        addDynamo(dev, 'clusterDb', 2, 2, {hash:{id:'S'}});
-        addDynamo(dev, 'adminsDb',  1, 1, {hash:{id:'S'}});                       // email
+        //addDynamo(dev, 'clusterDb', 2, 2, {hash:{id:'S'}});
+        //addDynamo(dev, 'adminsDb',  1, 1, {hash:{id:'S'}});                       // email
       }
 
       //================================================================================
