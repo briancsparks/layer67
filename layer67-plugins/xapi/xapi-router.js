@@ -113,25 +113,42 @@ const main = function() {
         return next();
 
       }, function(next) {
-        if (parts.length === 0) {
-          return sg._400(req, res);
-        }
 
+        //
+        // We will route to one of these forms (the longest that has a service running.)
+        //
+        //  /proj/xapi/v1/serviceRoute/...
+        //  /proj/xapi/v1/...
+        //  /proj/...
+        //
+
+        // We do not route to root
+        if (parts.length === 0)     { return sg._400(req, res); }
+
+        // See if one of the first 2 forms is running
         if (parts.length >= 3) {
-          // Try for the longer service name
           if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
+
+            // Try for the version with xapi/v1/serviceRoute
             if (parts.length >= 4) {
               serviceNames.push('/'+parts.slice(0, 4).join('/'));
             }
+
+            // Try for the version with xapi/v1
             serviceNames.push('/'+parts.slice(0, 3).join('/'));
           }
         }
 
+        // If we do not find the specific service, see if we can find the project
         serviceNames.push('/'+parts[0]);
 
-        // Now, simply see if anyone has registered for any of them
-
+        // Now, simply loop over the forms, and see if anyone has registered for any of them
         return sg.__each(serviceNames, function(serviceName, next) {
+
+          // Once we find a service, do not need to keep looking
+          if (service)    { return next(); }
+
+          // Call Redis to see if the service is available.
           return getServices(serviceName, (err, services) => {
             if (!sg.ok(err, services)) { return next(); }
 
@@ -146,25 +163,31 @@ const main = function() {
               }
             }
 
+            // We found a service
             service = services[serviceIndex++];
+
             return next();
           });
-        }, function() {
-          return next();
-        });
+        }, next);
 
       }, function(next) {
-        // Check that we have a service
+
+        //
+        // This function will respond with a not-found, unless we found a service
+        //
+
+        // Move on, if we have a service
         if (service) { return next(); }
 
-        // Nope.  Do more?  Just 404.
+        // No service, just 404
         if (!isProd()) {
           console.log('No services found for: ', serviceNames);
         }
 
-        return unhandled(req, res);
+        return unhandled(req, res, 404);
 
       }], function done() {
+
         // Got one -- Magic nginx potion
         // location ~* ^/rpxi/GET/(.*) {...}
         // location ~* ^/rpxissl/GET/(.*) {...}
@@ -230,6 +253,7 @@ function getServices(name, callback) {
     const redisKey = `${root}:${h}`;
 
     return redis.smembers(redisKey, function(err, members) {
+
       if (!sg.ok(err, members)) { return next(); }
       if (members.length === 0) { return next(); }
 
