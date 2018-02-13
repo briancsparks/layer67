@@ -1,23 +1,36 @@
 #!/bin/bash -e
 
+# Default ot HTTPS, but no client certs
+
+https=1
+
 eval "$(cli-shezargs $@)"
 
 ns="$NAMESPACE"
 
 [[ -z $ns     ]] && die "Need --namespace="
-[[ -z $color  ]] && die "Need --color="
 [[ -z $stack  ]] && die "Need --stack="
 [[ -z $fqdn   ]] && die "Need --fqdn="
 
-${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} --fqdn=${fqdn} "$@"
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --fqdn=${fqdn} "$@"
 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 
 # ---------- Configure nginx ----------
 
+server_config_options="fqdn=${fqdn}&port=5779"
+
+if [[ -n $client_certs   ]]; then
+  server_config_options="${server_config_options}&client_certs=1"
+  https=1
+  cilent_certs_option=" --client-certs"
+fi
+
+[[ -n $https          ]] && server_config_options="${server_config_options}&https=1"
+
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=${fqdn}&port=5779&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?${server_config_options}"
 
 # ---------- Get the nginx conf files ----------
 
@@ -33,11 +46,12 @@ push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')
 push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
 push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
 
-sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
-
 # ---------- Must assign the special FQDN ----------
 ${scripts_dir}/assign-fqdn --fqdn=${fqdn} --ip=${ip}
 
-# ----------- start nginx ----------
-sshix $ip "sudo nginx -t && sudo nginx"
+
+# Only start the server if the caller wants
+if [[ -z $delay_finishing ]]; then
+  ${scripts_dir}/run-final-web-instance-start-tasks --ip=${ip} "${cilent_certs_option}"
+fi
 

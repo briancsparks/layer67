@@ -148,7 +148,6 @@ fi
 
 [[ -z $stack    ]] && die "Need --stack="
 [[ -z $tier     ]] && die "Need --tier="
-[[ -z $color    ]] && die "Need --color="
 
 rm -f /tmp/run-instance-result.json
 ra invoke lib/ec2Instance.js runInstances --name="peach-${stack}-${tier}" > /tmp/run-instance-result.json

@@ -1,5 +1,23 @@
 
 /**
+ *  Does the main routing function for protected routes. (Routes that require a
+ *  client SSL cert.)
+ *
+ *  Longer routes are matched first:
+ *
+ *      /proj/[x]api/vXX/service1/...
+ *
+ *        The above is the longest route that will be matched and routed. This form allows
+ *        the `proj` project's `service1` handler to handle all routes for that service,
+ *        without having to route all the services itself.
+ *
+ *      /proj/[x]api/vXX/...
+ *
+ *        The above is routed to the `proj` project.
+ *
+ *      /proj/...
+ *
+ *        The above is the default for `proj`.
  *
  */
 const sg                      = require('sgsg');

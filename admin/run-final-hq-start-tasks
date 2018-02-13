@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $ip   ]] && die "Need --ip="
+
+# ----- l67console.mobilesebassist.net
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ----- l67hq.mobilesebassist.net
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+
+

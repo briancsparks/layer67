@@ -7,6 +7,8 @@
  */
 const sg                      = require('sgsg');
 const _                       = sg._;
+const path                    = require('path');
+const sh                      = sg.extlibs.shelljs;
 
 const ARGV                    = sg.ARGV();
 const argvGet                 = sg.argvGet;
@@ -39,11 +41,37 @@ commands.help = commands.usage = function() {
   return usage();
 };
 
+/**
+ *  Start the instance agent.
+ */
 commands.agent = commands.commandServer = commands['command-server'] = commands.cmd = function() {
   const agent             = require('./agent/agent');
 
   return agent.runAgentServer({}, {}, function(err, launched) {
   });
+};
+
+/**
+ *  Configure anything on the instance that has a layer67-plugins dir.
+ */
+commands.configPlugins = function() {
+
+  sh.pushd(path.join(process.env.HOME, 'dev'));
+  const plugins   = pluginDirs();
+
+  _.each(plugins, function(pluginDir) {
+    sh.cd(pluginDir);
+
+    sh.exec('npm install --production');
+  });
+  sh.popd();
+
+};
+
+/**
+ *
+ */
+commands.startPlugins = function() {
 };
 
 usage = function(message) {
@@ -63,5 +91,11 @@ usage = function(message) {
 
 if (sg.callMain(ARGV, __filename)) {
   main();
+}
+
+function pluginDirs() {
+  return sh.find(path.join(process.env.HOME, 'dev')).filter((file) => {
+    return file.match(/layer67-plugins/i) && file.endsWith('package.json') && !file.match(/node_modules/i);
+  }).map(file => path.dirname(file));;
 }
 

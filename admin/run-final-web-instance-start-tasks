@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $ip   ]] && die "Need --ip="
+
+if [[ -n $client_certs ]]; then
+  curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${fqdn}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+  sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+fi
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+
