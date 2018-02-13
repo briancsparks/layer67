@@ -3,6 +3,7 @@
 eval "$(cli-shezargs $@)"
 
 [[ -z $ip   ]] && die "Need --ip="
+[[ -z $fqdn ]] && die "Need --fqdn="
 
 if [[ -n $client_certs ]]; then
   curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${fqdn}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
