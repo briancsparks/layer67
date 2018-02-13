@@ -13,6 +13,7 @@ ns="$NAMESPACE"
 [[ -z $fqdn   ]] && die "Need --fqdn="
 
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --fqdn=${fqdn} "$@"
+cp /tmp/run-instance-result.json /tmp/run-fqdn-web-instance.json
 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 
@@ -54,4 +55,8 @@ ${scripts_dir}/assign-fqdn --fqdn=${fqdn} --ip=${ip}
 if [[ -z $delay_finishing ]]; then
   ${scripts_dir}/run-final-web-instance-start-tasks --ip=${ip} --fqdn=${fqdn} "${cilent_certs_option}"
 fi
+
+echo "IP address is in /tmp/run-fqdn-web-instance.json"
+echo ""
+echo 'ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"'
 
