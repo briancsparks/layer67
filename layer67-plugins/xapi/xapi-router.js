@@ -227,8 +227,11 @@ function getServices(name, callback) {
 
   var result = [];
   return sg.__eachll(getThreeHours(), (h, next) => {
-    return redis.smembers(`${root}:${h}`, function(err, members) {
+    const redisKey = `${root}:${h}`;
+
+    return redis.smembers(redisKey, function(err, members) {
       if (!sg.ok(err, members)) { return next(); }
+      if (members.length === 0) { return next(); }
 
       return redis.mget(members, function(err, services) {
         if (!sg.ok(err, services)) { return next(); }
@@ -238,14 +241,14 @@ function getServices(name, callback) {
       });
     });
   }, function() {
-    return callback(null, result);
+    return callback(null, _.compact(result));
   });
 }
 
 function getThreeHours() {
   const current = redisUtils.getHour();
-  const prev    = current === 0 ? 23 : current -1;
-  const next    = current === 23 ? 0 : current +1;
+  const prev    = ('0' + (+current === 0 ? 23 : +current -1)).slice(-2);
+  const next    = ('0' + (+current === 23 ? 0 : +current +1)).slice(-2);
 
   return [prev, current, next];
 }
