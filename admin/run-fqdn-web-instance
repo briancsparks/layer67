@@ -17,9 +17,14 @@ cp /tmp/run-instance-result.json /tmp/run-fqdn-web-instance.json
 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 
+# ---------- Do a little setup ----------
+
+sshix $ip "local/scripts/01-bootstrap --setenv LAYER67_TIER fqdn-web-${stack}"
+
+
 # ---------- Configure nginx ----------
 
-server_config_options="fqdn=${fqdn}&port=5779"
+server_config_options="fqdn=${fqdn}&port=5780"
 
 if [[ -n $client_certs   ]]; then
   server_config_options="${server_config_options}&client_certs=1"

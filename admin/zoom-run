@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+agent_port="12340"
+label="label"
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $ip       ]] && die "Need --ip="
+[[ -z $script   ]] && die "Need --script="
+
+
+curl -sS "http://${ip}:${agent_port}/run/sh?label=${label}" -F "script=@${script}"
+
