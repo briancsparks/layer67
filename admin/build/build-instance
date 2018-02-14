@@ -287,6 +287,7 @@ if [[ -z $skip_ami ]]; then
   wait_for_ami $image_id
   echo ""
 
+  # Add launch permissions to the AMI and the snapshot, and tag both
   if [[ -n $prod_acct_num ]]; then
     aws_ec2 modify-image-attribute --image-id "$image_id" --launch-permission "{\"Add\": [{\"UserId\":\"${prod_acct_num}\"}]}"
     aws_ec2 create-tags --resources "$image_id" --tags "Key=Name,Value=$ami_name" "Key=os,Value=$os_name"
@@ -298,6 +299,10 @@ if [[ -z $skip_ami ]]; then
       aws_ec2 create-tags --resources "$image_id"    --tags "Key=snapshotId,Value=$snapshot_id"
     fi
   fi
+
+  # Update the configDb with the new AMI
+  echo "Updating configDb with new AMI: ${image_id}"
+  ra invoke lib/cluster-db.js updateRunConfigAmi --stack=dev --image-id=${image_id} | jq '.'
 
   #skip_termination=1
   if [[ -z $skip_termination ]]; then
