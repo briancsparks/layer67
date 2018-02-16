@@ -14,5 +14,6 @@ fi
 instance_id="$(sshix $ip 'curl -sS http://169.254.169.254/latest/meta-data/instance-id')"
 eip="$(ra invoke "$(fn ~/dev/ ec2Instance\.js$)" eipForFqdn --fqdn="$fqdn" | jq -r '.eip')"
 
+echo aws ec2 associate-address $use_profile --allocation-id=$eip --instance-id=$instance_id --private-ip-address=$ip --allow-reassociation
 aws ec2 associate-address $use_profile --allocation-id=$eip --instance-id=$instance_id --private-ip-address=$ip --allow-reassociation
 

@@ -8,15 +8,23 @@ ns="$NAMESPACE"
 [[ -z $color  ]] && die "Need --color="
 [[ -z $stack  ]] && die "Need --stack="
 
+if [[ $stack == test ]]; then
+  domain_name="mobiledevassist.net"
+elif [[ $stack == prod ]]; then
+  domain_name="mobilewebassist.net"
+else
+  die "Unknown stack name"
+fi
+
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 
 # ---------- Configure nginx ----------
 
-# Setup for the following FQDNs
+# Setup for the following FQDNs  -- TODO: fix https
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=${color}-test.mobiledevassist.net&port=5779&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=${color}-l67.${domain_name}&port=5779&http=1"
 
 # ---------- Get the nginx conf files ----------
 
@@ -26,7 +34,7 @@ announce "Pushing certs to server"
 # =======================================================================
 
 # ----- color-test.mobilesebassist.net
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-test.mobiledevassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color2}-l67.${domain_name}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 
 ${scripts_dir}/push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
 ${scripts_dir}/push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
@@ -34,7 +42,7 @@ ${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq 
 
 # ---------- Must assign the *other* color (it will be switched once testing passes) ----------
 [[ $color == blue ]] && color2="teal" || color2="blue"
-${scripts_dir}/assign-fqdn --fqdn="${color2}-test.mobiledevassist.net" --ip=$ip
+${scripts_dir}/assign-fqdn --fqdn="${color2}-l67.${domain_name}" --ip=$ip
 
 # Only start the server if the caller wants
 if [[ -z $delay_finishing ]]; then
