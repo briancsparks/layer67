@@ -91,10 +91,10 @@ const main = function() {
       });
 
     });
-  });
 
-  server.listen(port, ip, function() {
-    console.log(`Listening on ${ip}:${port}`);
+    server.listen(port, ip, function() {
+      console.log(`Listening on ${ip}:${port}`);
+    });
   });
 };
 

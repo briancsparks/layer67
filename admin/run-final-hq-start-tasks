@@ -6,7 +6,7 @@ eval "$(cli-shezargs $@)"
 
 # ----- no-domain
 curl -sS "http://$ip:12340/file/etc/nginx/nginx.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
-sshix $ip "cd ~/dev/layer67/layer67-plugins/no-domain/ && pm2 start no-domain.js -- port=$(cat /tmp/config.json | jq -r '.routerPort')"
+sshix $ip "cd ~/dev/layer67/layer67-plugins/no-domain/ && pm2 start no-domain.js -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
 # ----- l67console.mobilesebassist.net
 # Note: l67console is handled by the same handler as l67xapi
