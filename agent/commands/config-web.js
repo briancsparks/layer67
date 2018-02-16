@@ -222,7 +222,7 @@ http {
   }`);
 
     const defServerConfig = sg._extend({
-      fqdn    : 'localhost'
+      fqdn    : 'no-domain'
     }, argv);
 
     return lib.buildServerConfig(defServerConfig, context, function(err, serverConfig) {

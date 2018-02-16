@@ -4,6 +4,10 @@ eval "$(cli-shezargs $@)"
 
 [[ -z $ip   ]] && die "Need --ip="
 
+# ----- no-domain
+curl -sS "http://$ip:12340/file/etc/nginx/nginx.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+sshix $ip "cd ~/dev/layer67/layer67-plugins/no-domain/ && pm2 start no-domain.js -- port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
 # ----- l67console.mobilesebassist.net
 # Note: l67console is handled by the same handler as l67xapi
 
@@ -13,7 +17,7 @@ sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js --n
 
 # ----- l67hq.mobilesebassist.net
 curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
-sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js --name client -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+sshix $ip "cd ~/dev/layer67/layer67-plugins/clientStart && pm2 start clientStart.js --name cstart -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
 # ----------- start nginx ----------
 sshix $ip "sudo nginx -t && sudo nginx"

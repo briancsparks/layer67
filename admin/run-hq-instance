@@ -19,7 +19,8 @@ ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
 curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5778&client_certs=1&https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&client_certs=1&https=1"
+#curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&http=1"
 curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5777&https=1"
 
 # ---------- Get the nginx conf files ----------

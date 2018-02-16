@@ -5,9 +5,9 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
-const AWS                     = require('aws-sdk');
 const http                    = require('http');
 const urlLib                  = require('url');
+var   MongoClient             = require('mongodb').MongoClient;
 
 const ARGV                    = sg.ARGV();
 const argvGet                 = sg.argvGet;
@@ -15,7 +15,8 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 const unhandled               = unhandledRoutes.unhandled;
-const dynamoDb                = new AWS.DynamoDB({region: 'us-east-1'});
+
+var   bootstrap;
 
 const main = function() {
 
@@ -27,55 +28,68 @@ const main = function() {
     process.exit(2);
   }
 
-  const server = http.createServer(function(req, res) {
+  return bootstrap(function(err, db, config_) {
+    const configDb  = db.db('layer67').collection('config');
+    const clientsDb = db.db('layer67').collection('clients');
 
-    // We are a long-poll server
-    req.setTimeout(0);
-    res.setTimeout(0);
+    const server = http.createServer(function(req, res) {
 
-    var result = {upstream: 'http://prod.mobilewebassist.net/api/v1', upstreams:{}};
+      const url       = urlLib.parse(req.url, true);
+      const urlParts  = _.rest(url);
 
-    const url = urlLib.parse(req.url, true);
-    if (url.pathname.toLowerCase() !== '/clientstart') {
-      return unhandled(req, res);
-    }
+      if (_.last(urlParts).toLowerCase() !== 'clientstart') {
+        return unhandled(req, res);
+      }
 
-    return sg.getBody(req, function(err) {
-      if (err) { return unhandled(req, res); }
+      // We are a long-poll server
+      req.setTimeout(0);
+      res.setTimeout(0);
 
-      // Collect all the interesting items
-      const all = sg._extend(url.query, req.bodyJson || {});
+      var projectId;
 
-      return sg.__each(['project', 'partner', 'client'], function(idType, next) {
-        // First, did the request have this type if id?
-        if (!all[idType+'Id']) { return next(); }
+      if (urlParts.length > 1) {
+        projectId = urlParts[0];
+      }
 
-        const name = all[idType+'Id'];
+      var result = {upstreams:{}};
 
-        var query = {};
-        query.TableName     = 'clientsDb';
-        query.Key           = {id:{S:`${idType}_${name}`}};
+      return sg.getBody(req, function(err) {
+        if (err) { return unhandled(req, res); }
 
-        return dynamoDb.getItem(query, function(err, data_) {
+        // Collect all the interesting items
+        const all = sg._extend(url.query, req.bodyJson || {});
 
-          if (!sg.ok(err, data_)) { return next(); }
+        projectId = projectId || all.projectId;
 
-          const data = {upstreams: sg.reduce(deref(data_, 'Item.upstreams.M'), {}, function(m, v, k) {
-            return sg.kv(m, k, v.S || v.N || v.SS);
-          })};
+        return sg.__run2([function(next, last, abort) {
+          const query = {
+            projectId,
+            upstream: {$exists:true}
+          };
 
-          const upstreams = sg.extract(data, 'upstreams');
-          _.extend(result, data);
-          _.extend(result.upstreams, upstreams);
-          return next();
+          return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
+            if (!sg.ok(err, items)) { return abort(500, 'find project fail'); }
+            if (items.length === 0) { return next(); }
+
+            const item = items[0];
+            result.upstream = item.upstream;
+
+            return next();
+          });
+
+        }], function done() {
+          return sg._200(req, res, result);
+
+        }, function abort(code_, msg) {
+          if (msg)  { console.error(msg); }
+
+          const code = code_ || 400;
+
+          return sg['_'+code](req, res);
         });
-      }, function() {
-        console.log('HQ handling: '+req.url+', sending to: '+result.upstream);
-        return sg._200(req, res, result);
       });
 
     });
-
   });
 
   server.listen(port, ip, function() {
@@ -83,6 +97,27 @@ const main = function() {
   });
 };
 
+
+bootstrap = function(callback) {
+  const dbAddress = process.env.SERVERASSIST_DB_IP;
+  var   dbUrl     = 'mongodb://10.12.21.229:27017/'+namespace;
+
+  var   db, config = {};
+
+  return sg.__run([function(next) {
+    if (db) { return next(); }
+
+    return MongoClient.connect(dbUrl, function(err, db_) {
+      if (!sg.ok(err, db_)) { return process.exit(2); }
+
+      db = db_;
+      return next();
+    });
+
+  }], function done() {
+    return callback(null, db, config);
+  });
+};
 
 
 

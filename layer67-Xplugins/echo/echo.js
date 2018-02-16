@@ -27,39 +27,34 @@ const main = function() {
     process.exit(2);
   }
 
-  return sg.__run([function(next) {
-    return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
-      console.log(err, result.text, result.ok, result.body);
-      if (sg.ok(err, result, result.text)) {
-        ip = result.text;
-      }
-      return next();
-    });
-  }], function done() {
-    const server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
 
-      // We are a long-poll server
-      req.setTimeout(0);
-      res.setTimeout(0);
+    // We are a long-poll server
+    req.setTimeout(0);
+    res.setTimeout(0);
 
-      var result = {};
+    var result = {};
 
-      const url = urlLib.parse(req.url, true);
+    const url = urlLib.parse(req.url, true);
 
-      _.extend(result, url);
-      _.extend(result, {headers: req.headers});
+    _.extend(result, url);
+    _.extend(result, {headers: req.headers});
 
-      console.log('Echoing: '+req.url);
-      return sg._200(req, res, result);
-    });
+    console.log('Echoing: '+req.url);
+    return sg._200(req, res, result);
+  });
 
-    server.listen(port, ip, function() {
+  return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
+    if (sg.ok(err, result, result.text)) { ip = result.text; }
+
+    return server.listen(port, ip, function() {
       console.log(`Listening on ${ip}:${port}`);
+
       tell();
       function tell() {
-        setTimeout(tell, 15);
-        redisUtils.tellService('/echo', `http://${ip}:${port}`, 30, function(err) {
-          redisUtils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30, function(err) {
+        setTimeout(tell, 15 * 1000);
+        redisUtils.tellService('/echo', `http://${ip}:${port}`, 30000, function(err) {
+          redisUtils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30000, function(err) {
           });
         });
       };
