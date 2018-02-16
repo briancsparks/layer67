@@ -1,7 +1,7 @@
 
 /**
- *  Does the main routing function for protected routes. (Routes that require a
- *  client SSL cert.)
+ *  Does the main routing function for protected and unprotected routes. (Routes that require a
+ *  client SSL cert are 'protected'.)
  *
  *  Longer routes are matched first:
  *
@@ -69,11 +69,11 @@ const main = function() {
       const url   = urlLib.parse(req.url, true);
       const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
-      // ---------- Verify user ----------
-
       var   service;
       var   serviceNames = [];
       return sg.__run([function(next) {
+
+        // ---------- Verify user, if necessary ----------
 
         // A header of X-Client-Verify means nginx was told to check client certs
         if (req.headers['x-client-verify']) {
@@ -110,6 +110,7 @@ const main = function() {
           });
         }
 
+        // No client cert required
         return next();
 
       }, function(next) {
