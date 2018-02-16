@@ -10,5 +10,5 @@ eval "$(cli-shezargs $@)"
 
 
 echo "zoom-run" curl -sS "http://${ip}:${agent_port}/run/sh?label=${label}" -F "script=@${script}"
-curl -sS "http://${ip}:${agent_port}/run/sh?label=${label}" -F "script=@${script}"
+curl -sS "http://${ip}:${agent_port}/run/sh?label=${label}" -F "script=@${script}" | jq '.'
 
