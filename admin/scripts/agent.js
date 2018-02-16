@@ -341,51 +341,55 @@ cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, re
         }
       });
 
-      // Now, run them
-      const spawnOptions = {
-        cwd:  process.env.HOME,
-        env:  process.env
-      };
+      // Let the above commands complete
+      return sg.setTimeout(100, function() {
 
-      var index = 0;
-      return sg.__each(scriptsToRun, function(path, next) {
-        const runIndex    = index;
-        var   runResult   = {outlen:0, errlen:0, index, path};
-        var   child       = child_process.spawn(path, [], spawnOptions);
+        // Now, run them
+        const spawnOptions = {
+          cwd:  process.env.HOME,
+          env:  process.env
+        };
 
-        var stdoutRemainder = '';
-        child.stdout.on('data', function(chunk) {
-          var lines = (stdoutRemainder + chunk).split('\n');
-          stdoutRemainder = lines.pop();
+        var index = 0;
+        return sg.__each(scriptsToRun, function(path, next) {
+          const runIndex    = index;
+          var   runResult   = {outlen:0, errlen:0, index, path};
+          var   child       = child_process.spawn(path, [], spawnOptions);
 
-          runResult.outlen += chunk.length;
-          _.each(lines, line => { toStdout(line); });
+          var stdoutRemainder = '';
+          child.stdout.on('data', function(chunk) {
+            var lines = (stdoutRemainder + chunk).split('\n');
+            stdoutRemainder = lines.pop();
+
+            runResult.outlen += chunk.length;
+            _.each(lines, line => { toStdout(line); });
+          });
+
+          var stderrRemainder = '';
+          child.stderr.on('data', function(chunk) {
+            var lines = (stderrRemainder + chunk).split('\n');
+            stderrRemainder = lines.pop();
+
+            runResult.errlen += chunk.length;
+            _.each(lines, line => { toStderr(line); });
+          });
+
+          child.on('close', function(code) {
+
+            toStdout(stdoutRemainder, true);
+            toStderr(stderrRemainder, true);
+
+            _.extend(runResult, {code});
+            result.exits[runIndex] = runResult;
+            return next();
+          });
+
+          index += 1;
+
+        }, function done() {
+
+          return sg._200(req, res, result);
         });
-
-        var stderrRemainder = '';
-        child.stderr.on('data', function(chunk) {
-          var lines = (stderrRemainder + chunk).split('\n');
-          stderrRemainder = lines.pop();
-
-          runResult.errlen += chunk.length;
-          _.each(lines, line => { toStderr(line); });
-        });
-
-        child.on('close', function(code) {
-
-          toStdout(stdoutRemainder, true);
-          toStderr(stderrRemainder, true);
-
-          _.extend(runResult, {code});
-          result.exits[runIndex] = runResult;
-          return next();
-        });
-
-        index += 1;
-
-      }, function done() {
-
-        return sg._200(req, res, result);
       });
     }
 
