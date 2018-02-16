@@ -262,7 +262,7 @@ lib.buildServerConfig = function() {
     const webtierRouter       = argvGet(argv, 'webrouter')                  || `http://127.0.0.1:${routerPort}`;
     const isDefault           = (argvGet(argv, 'default') && 'default')     || "";
 
-    const useHttp             = argvGet(argv, 'http');
+    const useHttp             = true; //argvGet(argv, 'http');
     const useHttps            = argvGet(argv, 'https');
     const certfile            = argvGet(argv, 'certfile')                   || path.join('/etc/nginx/certs', fqdn+'.crt');
     const keyfile             = argvGet(argv, 'keyfile')                    || path.join('/etc/nginx/certs', fqdn+'.key');

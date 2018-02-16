@@ -33,7 +33,7 @@ const main = function() {
   });
 
   return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
-    if (sg.ok(err, result, result.text)) { ip = result.text; }
+    //if (sg.ok(err, result, result.text)) { ip = result.text; }
 
     return server.listen(port, ip, function() {
       console.log(`Listening on ${ip}:${port}`);

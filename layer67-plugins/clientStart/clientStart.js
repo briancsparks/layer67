@@ -36,9 +36,9 @@ const main = function() {
     const server = http.createServer(function(req, res) {
 
       const url       = urlLib.parse(req.url, true);
-      const urlParts  = _.rest(url);
+      const urlParts  = _.rest(url.pathname.split('/'));
 
-      if (_.last(urlParts).toLowerCase() !== 'clientstart') {
+      if (urlParts.length === 0 || _.last(urlParts).toLowerCase() !== 'clientstart') {
         return unhandled(req, res);
       }
 
@@ -73,7 +73,8 @@ const main = function() {
             if (items.length === 0) { return next(); }
 
             const item = items[0];
-            result.upstream = item.upstream;
+            result.upstream   = item.upstream.prod;
+            result.upstreams  = sg._extend(result.upstreams, item.upstreams.prod);
 
             return next();
           });
