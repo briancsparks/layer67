@@ -4,7 +4,7 @@
  *
  *  This means setting up and maintaining several nginx.conf scripts.
  *
- *  The functions below are run-anything-ified. The ones with 'save' on the
+ *  The functions below are run-anywhere-ified. The ones with 'save' on the
  *  name save nginx.conf files; the ones with 'build' in the name just
  *  build the nginx.conf files.
  *
@@ -45,6 +45,26 @@ var lib = {cmds:{}};
 /**
  *  Makes configuration changes on the instance to support the request.
  */
+lib.cmds['root-config'] = function(req, res, url, restOfPathParts) {
+
+  var   all   = sg.extend(url.query || {});
+
+  return sg.getBody(req, function(err, bodyJson) {
+    if (sg.ok(err, bodyJson)) {
+      all = sg._extend(all, bodyJson || {});
+    }
+
+    return lib.saveRootConfig(all, {}, function(err, result) {
+      if (!sg.ok(err, result))    { return sg._400(req, res, err); }
+
+      return sg._200(req, res, result);
+    });
+  });
+};
+
+/**
+ *  Makes configuration changes on the instance to support the request.
+ */
 lib.cmds['server-config'] = function(req, res, url, restOfPathParts) {
 
   var   all   = sg.extend(url.query || {});
@@ -62,21 +82,17 @@ lib.cmds['server-config'] = function(req, res, url, restOfPathParts) {
   });
 };
 
-lib.saveServerConfig = function() {
+lib.saveRootConfig = function() {
   var   u               = sg.prepUsage();
 
   var ra = raLib.adapt(arguments, (argv, context, callback) => {
-    const buildServerConfig   = ra.wrap(lib.buildServerConfig);
+    const buildRootConfig   = ra.wrap(lib.buildRootConfig);
 
-    const fqdn        = argvGet(argv, u('fqdn',  '=fqdn', 'The fqdn.'));
-
-    if (!fqdn)        { return u.sage('fqdn', 'Need fqdn.', callback); }
-
-    const filename    = path.join('/etc/nginx/sites-enabled', fqdn+'.conf');
+    const filename    = argvGet(argv, 'filename,file')    || '/etc/nginx/nginx.conf';
 
     return sg.__run2({}, callback, [function(result, next, last, abort) {
-      return buildServerConfig(argv, function(err, config) {
-        if (!sg.ok(err, config))  { return abort('saveServerConfig.buildServerConfig'); }
+      return buildRootConfig(argv, function(err, config) {
+        if (!sg.ok(err, config))  { return abort('saveRootConfig.buildRootConfig'); }
 
         result.config = config;
         return next();
@@ -105,37 +121,21 @@ lib.saveServerConfig = function() {
 
 };
 
-/**
- *  Makes configuration changes on the instance to support the request.
- */
-lib.cmds['root-config'] = function(req, res, url, restOfPathParts) {
-
-  var   all   = sg.extend(url.query || {});
-
-  return sg.getBody(req, function(err, bodyJson) {
-    if (sg.ok(err, bodyJson)) {
-      all = sg._extend(all, bodyJson || {});
-    }
-
-    return lib.saveRootConfig(all, {}, function(err, result) {
-      if (!sg.ok(err, result))    { return sg._400(req, res, err); }
-
-      return sg._200(req, res, result);
-    });
-  });
-};
-
-lib.saveRootConfig = function() {
+lib.saveServerConfig = function() {
   var   u               = sg.prepUsage();
 
   var ra = raLib.adapt(arguments, (argv, context, callback) => {
-    const buildRootConfig   = ra.wrap(lib.buildRootConfig);
+    const buildServerConfig   = ra.wrap(lib.buildServerConfig);
 
-    const filename    = argvGet(argv, 'filename,file')    || '/etc/nginx/nginx.conf';
+    const fqdn        = argvGet(argv, u('fqdn',  '=fqdn', 'The fqdn.'));
+
+    if (!fqdn)        { return u.sage('fqdn', 'Need fqdn.', callback); }
+
+    const filename    = path.join('/etc/nginx/sites-enabled', fqdn+'.conf');
 
     return sg.__run2({}, callback, [function(result, next, last, abort) {
-      return buildRootConfig(argv, function(err, config) {
-        if (!sg.ok(err, config))  { return abort('saveRootConfig.buildRootConfig'); }
+      return buildServerConfig(argv, function(err, config) {
+        if (!sg.ok(err, config))  { return abort('saveServerConfig.buildServerConfig'); }
 
         result.config = config;
         return next();
@@ -222,7 +222,7 @@ http {
   }`);
 
     const defServerConfig = sg._extend({
-      fqdn    : 'localdef'
+      fqdn    : 'localhost'
     }, argv);
 
     return lib.buildServerConfig(defServerConfig, context, function(err, serverConfig) {

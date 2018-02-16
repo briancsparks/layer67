@@ -18,8 +18,9 @@ ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')
 
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5779&client_certs=1&https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5776&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5778&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&client_certs=1&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5777&https=1"
 
 # ---------- Get the nginx conf files ----------
 
@@ -35,8 +36,6 @@ push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')
 push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
 push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
 
-# ---------- Once you want to assign the FQDN, it would be this ----------
-#${scripts_dir}/../assign-fqdn --fqdn=l67console.mobilewebassist.net --ip=${ip}
 
 
 # ----- l67hq.mobilesebassist.net

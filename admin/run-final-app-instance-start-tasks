@@ -1,0 +1,19 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $ip   ]] && die "Need --ip="
+
+
+
+
+# Note: This is what you would do if the internal instance were to be addressable via name through nginx
+
+#curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-test.mobiledevassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+#sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js --name xapi -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
+
+
+# ----------- start nginx ----------
+sshix $ip "sudo nginx -t && sudo nginx"
+
+

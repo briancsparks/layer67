@@ -54,20 +54,20 @@ wait_for_start() {
   sleep 1
 }
 
-push_cert_to_server() {
-  message="$1"
-  fullpath="$2"
-  ip="$3"
-
-  printf "push_cert_to_server %-14s %-20s %-60s" "$message" "$ip" "$fullpath"
-
-  if [[ -n $fullpath ]]; then
-    ra invoke "$(fnn ~/dev 'crypto-kms\.js$')" pushCertToServer --ip=$ip --fullpath=$fullpath > /tmp/push-cert-to-server.json 2> /tmp/push-cert-to-server-error
-    cat /tmp/push-cert-to-server.json | jq -r '.items[].size' || true
-  else
-    echo ""
-  fi
-}
+#push_cert_to_server() {
+#  message="$1"
+#  fullpath="$2"
+#  ip="$3"
+#
+#  printf "push_cert_to_server %-14s %-20s %-60s" "$message" "$ip" "$fullpath"
+#
+#  if [[ -n $fullpath ]]; then
+#    ra invoke "$(fnn ~/dev 'crypto-kms\.js$')" pushCertToServer --ip=$ip --fullpath=$fullpath > /tmp/push-cert-to-server.json 2> /tmp/push-cert-to-server-error
+#    cat /tmp/push-cert-to-server.json | jq -r '.items[].size' || true
+#  else
+#    echo ""
+#  fi
+#}
 
 # =========================================================================================
 announce " Launching instance"
@@ -129,9 +129,9 @@ ip_for_filename="$(echo $ip | tr '.' '-')"
 uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
 cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
-# ---------- Once the instance is started, finalize it to work ----------
-
 wait_for_start $ip
+
+# ---------- Once the instance is started, finalize it to work ----------
 
 #push-changes-to $ip
 if [[ -n $pause ]]; then
@@ -149,7 +149,7 @@ sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
 sshix $ip "cd ~/dev/layer67 && git pull"
 
 sshix $ip "cd ~/dev/layer67 && npm install --production || true"
-sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js -- agent --main --ip=$(curl -sS "http://169.254.169.254/latest/meta-data/local-ipv4")'
+sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js --name agent -- agent --main --ip=$(curl -sS "http://169.254.169.254/latest/meta-data/local-ipv4")'
 
 echo "Waiting to let instance start listening..."
 sleep 5

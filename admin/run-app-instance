@@ -1,0 +1,34 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $stack  ]] && die "Need --stack="
+
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=app "$@"
+
+ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+
+# ---------- Configure nginx ----------
+
+# The basic listener
+curl -sS "http://$ip:12340/root-config"
+
+
+
+# Note: This is what you would do if the internal instance were to be addressable via name through nginx
+
+#curl -sS "http://$ip:12340/server-config?fqdn=${color}-test.mobiledevassist.net&port=5781&client_certs=1&https=1"
+#curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-test.mobiledevassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+#
+#${scripts_dir}/push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
+#${scripts_dir}/push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
+#${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
+
+
+
+
+# Only start the server if the caller wants
+if [[ -z $delay_finishing ]]; then
+  ${scripts_dir}/run-final-app-instance-start-tasks --ip=${ip}
+fi
+

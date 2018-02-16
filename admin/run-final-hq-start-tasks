@@ -5,7 +5,10 @@ eval "$(cli-shezargs $@)"
 [[ -z $ip   ]] && die "Need --ip="
 
 # ----- l67console.mobilesebassist.net
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+# Note: l67console is handled by the same handler as l67xapi
+
+# ----- l67xapi.mobilesebassist.net
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67xapi.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js --name xapi -- --port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
 # ----- l67hq.mobilesebassist.net
