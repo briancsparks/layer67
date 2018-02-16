@@ -15,6 +15,7 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 const unhandled               = unhandledRoutes.unhandled;
+var   namespace               = 'layer67';
 
 var   bootstrap;
 
