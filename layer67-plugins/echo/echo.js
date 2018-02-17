@@ -5,7 +5,7 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
-const redisUtils                   = require('../../lib/redis-utils');
+const redisUtils              = require('../../lib/redis-utils');
 const http                    = require('http');
 const urlLib                  = require('url');
 const request                 = sg.extlibs.superagent;
@@ -19,7 +19,6 @@ const unhandled               = unhandledRoutes.unhandled;
 
 const main = function() {
 
-  var   ip          = ARGV.ip       || '127.0.0.1';
   const port        = ARGV.port;
 
   if (!port) {
@@ -45,7 +44,13 @@ const main = function() {
   });
 
   return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
-    if (sg.ok(err, result, result.text)) { ip = result.text; }
+    var   ip;
+
+    if (sg.ok(err, result, result.text)) {
+      ip = result.text;
+    }
+
+    ip  = ARGV.ip || ip || '127.0.0.1';
 
     return server.listen(port, ip, function() {
       console.log(`Listening on ${ip}:${port}`);

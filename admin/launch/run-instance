@@ -133,6 +133,12 @@ wait_for_start $ip
 
 # ---------- Once the instance is started, finalize it to work ----------
 
+#agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
+
+sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
+
+sshix $ip "cd ~/dev/layer67 && git pull"
+
 #push-changes-to $ip
 if [[ -n $pause ]]; then
   echo "Instance $ip is up"
@@ -141,12 +147,6 @@ if [[ -n $pause ]]; then
   read -n 1 -s -r -p "        Press any key to continue"
   echo
 fi
-
-#agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
-
-sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
-
-sshix $ip "cd ~/dev/layer67 && git pull"
 
 sshix $ip "cd ~/dev/layer67 && npm install --production || true"
 sshix $ip 'cd ~/dev/layer67 && pm2 start layer67.js --name agent -- agent --main --ip=$(curl -sS "http://169.254.169.254/latest/meta-data/local-ipv4")'

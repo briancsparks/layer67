@@ -39,7 +39,7 @@ push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert
 
 
 
-# ----- l67hq.mobilesebassist.net
+# ----- l67hq.mobilewebassist.net
 curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 
 push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
