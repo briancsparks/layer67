@@ -341,6 +341,10 @@ cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, re
         }
       });
 
+      var args = _.map(url.query, function(value, key) {
+        return `--${key}=${value}`;
+      });
+
       // Let the above commands complete
       return sg.setTimeout(100, function() {
 
@@ -354,7 +358,8 @@ cmds.build.bash = cmds.build.sh = cmds.run.bash = cmds.run.sh = function(req, re
         return sg.__each(scriptsToRun, function(path, next) {
           const runIndex    = index;
           var   runResult   = {outlen:0, errlen:0, index, path};
-          var   child       = child_process.spawn(path, [], spawnOptions);
+          var   child       = child_process.spawn(path, args, spawnOptions);
+console.log(path, args);
 
           var stdoutRemainder = '';
           child.stdout.on('data', function(chunk) {
