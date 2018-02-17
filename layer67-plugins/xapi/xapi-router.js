@@ -72,6 +72,8 @@ const main = function() {
       const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
       var   service;
+      var   serviceName;
+      var   colorIndex;
       var   serviceNames = [];
       return sg.__run([function(next) {
 
@@ -136,30 +138,31 @@ const main = function() {
             // Try for the version with xapi/v1/serviceRoute
             if (parts.length >= 4) {
               if (color) {
-                serviceNames.push('/'+parts.slice(0, 4).join('/')+'/'+color);
+                serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[3], colorIndex:3});
               }
-              serviceNames.push('/'+parts.slice(0, 4).join('/'));
+              serviceNames.push({path:'/'+parts.slice(0, 4).join('/'), colorIndex:-1});
             }
 
             // Try for the version with xapi/v1
             if (color) {
-              serviceNames.push('/'+parts.slice(0, 3).join('/')+'/'+color);
+              serviceNames.push({path:'/'+parts.slice(0, 2).join('/')+'/'+color+'/'+parts[2], colorIndex:2});
             }
-            serviceNames.push('/'+parts.slice(0, 3).join('/'));
+            serviceNames.push({path:'/'+parts.slice(0, 3).join('/'), colorIndex:-1});
           }
         }
 
         // If we do not find the specific service, see if we can find the project
-        serviceNames.push('/'+parts[0]);
+        serviceNames.push({path:'/'+parts[0], colorIndex:-1});
 
         // Now, simply loop over the forms, and see if anyone has registered for any of them
-        return sg.__each(serviceNames, function(serviceName, next) {
+        return sg.__each(serviceNames, function(serviceNameData, next) {
+          const serviceName_ = serviceNameData.path;
 
           // Once we find a service, do not need to keep looking
           if (service)    { return next(); }
 
           // Call Redis to see if the service is available.
-          return getServices(serviceName, (err, services) => {
+          return getServices(serviceName_, (err, services) => {
             if (!sg.ok(err, services)) { return next(); }
 
             // Are there any services available?
@@ -174,7 +177,9 @@ const main = function() {
             }
 
             // We found a service
-            service = services[serviceIndex++];
+            service     = services[serviceIndex++];
+            serviceName = serviceName_;
+            colorIndex  = serviceNameData.colorIndex;
 
             return next();
           });
@@ -204,8 +209,13 @@ const main = function() {
 
         // TODO: if we are rpxi-ing ssl, use ssl version
         const svc     = service.replace(/(http|https):[/][/]/i, '');
+        var   useUrl  = req.url.split('/');
 
-        const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${req.url}`);
+        if (colorIndex >= 0) {
+          useUrl.splice(colorIndex+1, 0, color);
+        }
+
+        const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${useUrl.join('/')}`);
 
         console.log('xapi: '+url.pathname+' --> '+redir);
 
