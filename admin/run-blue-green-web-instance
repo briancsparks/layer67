@@ -12,6 +12,7 @@ if [[ $stack == test ]]; then
   domain_name="mobiledevassist.net"
 elif [[ $stack == prod ]]; then
   domain_name="mobilewebassist.net"
+  assumed_acct="pub"
 else
   die "Unknown stack name"
 fi
@@ -19,6 +20,9 @@ fi
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
+
+${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=color,Value=$color"
 
 # ---------- Configure nginx ----------
 
@@ -42,7 +46,7 @@ ${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq 
 
 # ---------- Must assign the *other* color (it will be switched once testing passes) ----------
 #[[ $color == blue ]] && color2="teal" || color2="blue"
-${scripts_dir}/assign-fqdn --fqdn="${color}-l67.${domain_name}" --ip=$ip
+${scripts_dir}/assign-fqdn --fqdn="${color}-l67.${domain_name}" --ip=$ip --stack=${stack}
 
 # Only start the server if the caller wants
 if [[ -z $delay_finishing ]]; then

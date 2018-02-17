@@ -40,6 +40,7 @@ const unhandled               = unhandledRoutes.unhandled;
 const redisPort               = argvGet(ARGV, 'redis-port')             || 6379;
 const redisHost               = argvGet(ARGV, 'redis-host')             || 'redis';
 var   namespace               = 'layer67';
+const stack                   = ARGV.stack;
 
 const redis                   = redisLib.createClient(redisPort, redisHost);
 
@@ -51,6 +52,7 @@ const main = function() {
 
 
     const ip          = ARGV.ip       || '127.0.0.1';
+    const color       = ARGV.color;
     const port        = ARGV.port;
 
     if (!port) {
@@ -118,6 +120,7 @@ const main = function() {
         //
         // We will route to one of these forms (the longest that has a service running.)
         //
+        //  /proj/xapi/v1/color/serviceRoute/...
         //  /proj/xapi/v1/serviceRoute/...
         //  /proj/xapi/v1/...
         //  /proj/...
@@ -132,10 +135,16 @@ const main = function() {
 
             // Try for the version with xapi/v1/serviceRoute
             if (parts.length >= 4) {
+              if (color) {
+                serviceNames.push('/'+parts.slice(0, 4).join('/')+'/'+color);
+              }
               serviceNames.push('/'+parts.slice(0, 4).join('/'));
             }
 
             // Try for the version with xapi/v1
+            if (color) {
+              serviceNames.push('/'+parts.slice(0, 3).join('/')+'/'+color);
+            }
             serviceNames.push('/'+parts.slice(0, 3).join('/'));
           }
         }
@@ -247,7 +256,7 @@ bootstrap = function(callback) {
 main();
 
 function getServices(name, callback) {
-  const root = `service:${name}`;
+  const root = ['service', stack, name].join(':');
 
   var result = [];
   return sg.__eachll(getThreeHours(), (h, next) => {

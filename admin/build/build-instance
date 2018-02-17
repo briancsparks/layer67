@@ -302,7 +302,7 @@ if [[ -z $skip_ami ]]; then
 
   # Update the configDb with the new AMI
   echo "Updating configDb with new AMI: ${image_id}"
-  ra invoke lib/cluster-db.js updateRunConfigAmi --stack=dev --image-id=${image_id} | jq '.'
+  ra invoke "$(fnn ~/dev lib/cluster-db\.js$)" updateRunConfigAmi --stack=dev --image-id=${image_id} | jq '.'
 
   #skip_termination=1
   if [[ -z $skip_termination ]]; then

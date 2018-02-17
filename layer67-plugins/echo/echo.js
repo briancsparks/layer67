@@ -16,13 +16,15 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 const unhandled               = unhandledRoutes.unhandled;
+const stack                   = ARGV.stack;
+const color                   = ARGV.color;
 
 const main = function() {
 
   const port        = ARGV.port;
 
-  if (!port) {
-    console.log('Need --port=');
+  if (!port || !color || !stack) {
+    console.log('Need --port= and --color= and --stack=');
     process.exit(2);
   }
 
@@ -58,8 +60,8 @@ const main = function() {
       tell();
       function tell() {
         setTimeout(tell, 15 * 1000);
-        redisUtils.tellService('/echo', `http://${ip}:${port}`, 30000, function(err) {
-          redisUtils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30000, function(err) {
+        redisUtils.tellStackService('/echo', `http://${ip}:${port}`, 30000, stack, function(err) {
+          redisUtils.tellStackService(`/echo/xapi/v1/${color}`, `http://${ip}:${port}`, 30000, stack, function(err) {
           });
         });
       };
