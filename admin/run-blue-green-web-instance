@@ -44,12 +44,11 @@ ${scripts_dir}/push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq 
 ${scripts_dir}/push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
 ${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
 
-# ---------- Must assign the *other* color (it will be switched once testing passes) ----------
-#[[ $color == blue ]] && color2="teal" || color2="blue"
+# Assign FQDN
 ${scripts_dir}/assign-fqdn --fqdn="${color}-l67.${domain_name}" --ip=$ip --stack=${stack}
 
 # Only start the server if the caller wants
 if [[ -z $delay_finishing ]]; then
-  ${scripts_dir}/run-final-blue-green-web-instance-start-tasks --ip=${ip} --color=${color} --domain-name=$domain_name
+  ${scripts_dir}/run-final-blue-green-web-instance-start-tasks --ip=${ip} --color=${color} --stack=${stack} --domain-name=$domain_name
 fi
 
