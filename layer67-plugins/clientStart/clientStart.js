@@ -46,7 +46,13 @@ const main = function() {
       req.setTimeout(0);
       res.setTimeout(0);
 
+      var msg           = '';
       var projectId;
+
+      if (req.headers.host) {
+        msg += req.headers.host;
+      }
+      msg += url.pathname;
 
       if (urlParts.length > 1) {
         projectId = urlParts[0];
@@ -55,7 +61,7 @@ const main = function() {
       var result = {upstreams:{}};
 
       return sg.getBody(req, function(err) {
-        if (err) { return unhandled(req, res); }
+        if (err) { console.error(msg); return unhandled(req, res); }
 
         // Collect all the interesting items
         const all = sg._extend(url.query, req.bodyJson || {});
@@ -67,6 +73,8 @@ const main = function() {
             projectId,
             upstream: {$exists:true}
           };
+
+          msg += ', projectId:'+projectId;
 
           return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
             if (!sg.ok(err, items)) { return abort(500, 'find project fail'); }
@@ -80,10 +88,16 @@ const main = function() {
           });
 
         }], function done() {
+          if (result.upstream) {
+            msg += ` --> |${result.upstream}|`;
+          }
+
+          console.log(msg);
           return sg._200(req, res, result);
 
-        }, function abort(code_, msg) {
-          if (msg)  { console.error(msg); }
+        }, function abort(code_, errMsg) {
+          console.error(msg);
+          if (errMsg)  { console.error(errMsg); }
 
           const code = code_ || 400;
 
