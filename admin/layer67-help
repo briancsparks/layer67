@@ -1,0 +1,50 @@
+#!/bin/bash -e
+
+prj="ntl"
+color="teal"
+stack="test"
+ip="10.13.8.20"
+
+eval "$(cli-shezargs $@)"
+
+#echo "curl 'http://l67hq.mobilewebassist.net/$prj/clientStart' "
+
+cat <<EOF
+
+You can set:
+  \$prj
+  \$color
+  \$stack
+  \$ip
+
+-----------------------------------------------
+Starting Servers:
+  --pause
+
+run-hq-instance --color=$color
+
+(cd dev/layer67/layer67-plugins/echo/ && pm2 start echo.js -- --port=5790)
+
+run-blue-green-web-instance --color=$color --stack=$stack
+
+(cd ~/dev/river && ./layer67-plugins/feed/bin/run-feed-instance)
+(cd ~/dev/river && ./layer67-plugins/ingest/bin/run-ingest-instance)
+
+-----------------------------------------------
+FQDNs:
+
+assign-fqdn --fqdn=l67hq.mobilewebassist.net --ip=$ip
+
+-----------------------------------------------
+Interaction:
+
+curl -sS 'http://l67hq.mobilewebassist.net/$prj/clientStart' | jq '.'
+curl -sS 'http://l67xapi.mobilewebassist.net/echo/api/v1/foobar' | jq '.'
+sacurl -sS 'https://l67console.mobilewebassist.net/echo/api/v1/foobar' | jq '.'
+
+sacurl -sS 'https://l67console.mobilewebassist.net/ntl/xapi/v1/feed?clientId=asdf&watch=bsdf&expectJson=1' | jq '.'
+redis-cli LPUSH river:feed:asdf '{"payload":[{"a":42}]}'
+curl -sS "http://blue-l67.mobiledevassist.net/ntl/xapi/v1/ingest?sessionId=bsdf-12345678" -d '{"payload":[{"a":42}]}' -H 'application/json'
+
+EOF
+
