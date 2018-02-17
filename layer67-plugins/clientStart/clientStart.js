@@ -58,13 +58,15 @@ const main = function() {
         projectId = urlParts[0];
       }
 
-      var result = {upstreams:{}};
+      var result = {upstreams:{}, preference:{}};
 
       return sg.getBody(req, function(err) {
         if (err) { console.error(msg); return unhandled(req, res); }
 
         // Collect all the interesting items
-        const all = sg._extend(url.query, req.bodyJson || {});
+        const all   = sg._extend(url.query, req.bodyJson || {});
+        const rsvr  = all.rsvr;
+        const stack = stackForRsvr(rsvr);
 
         projectId = projectId || all.projectId;
 
@@ -78,13 +80,13 @@ const main = function() {
 
           return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
             if (!sg.ok(err, items)) { return abort(500, 'find project fail'); }
-            if (items.length === 0) { return next(); }
 
-            const item = items[0];
-            result.upstream   = item.upstream.prod;
-            result.upstreams  = sg._extend(result.upstreams, item.upstreams.prod);
+            return sg.__each(items, function(item, nextItem) {
+              result.upstream   = item.upstream[stack] || result.upstream;
+              result.upstreams  = sg._extend(result.upstreams, item.upstreams[stack]);
 
-            return next();
+              return nextItem();
+            }, next);
           });
 
         }], function done() {
@@ -140,4 +142,16 @@ bootstrap = function(callback) {
 
 
 main();
+
+function stackForRsvr(rsvr) {
+  if (rsvr === 'hqqa' || rsvr === 'qa')           { return 'test'; }
+  if (rsvr === 'hqtest' || rsvr === 'test')       { return 'test'; }
+  if (rsvr === 'hqstg' || rsvr === 'stg')         { return 'stg';  }
+  if (rsvr === 'hqext' || rsvr === 'ext')         { return 'ext';  }
+  if (rsvr === 'hqpub' || rsvr === 'pub')         { return 'prod'; }
+  if (rsvr === 'hqprod' || rsvr === 'prod')       { return 'prod'; }
+
+  return 'prod';
+}
+
 
