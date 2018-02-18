@@ -19,6 +19,13 @@
  *
  *        The above is the default for `proj`.
  *
+ *  Then, theres the color. Xapi-router supports blue/green deployments. The client can
+ *  (1) ask for a specific color, (2) ask for main/next, or (3) ask for nothing (and
+ *  get what the project wants them to have.
+ *
+ *  The color comes after the vXX part of the path, like: .../vXX/teal/... and can be one of
+ *  many white-listed color names, or `main` or `next` (of course, `main` is kinda pointless.)
+ *
  */
 const sg                      = require('sgsg');
 const _                       = sg._;
@@ -41,6 +48,7 @@ const redisPort               = argvGet(ARGV, 'redis-port')             || 6379;
 const redisHost               = argvGet(ARGV, 'redis-host')             || 'redis';
 var   namespace               = 'layer67';
 const stack                   = ARGV.stack;
+const argvColor               = ARGV.color;
 
 const redis                   = redisLib.createClient(redisPort, redisHost);
 
@@ -49,10 +57,9 @@ var   bootstrap;
 const main = function() {
   return bootstrap(function(err, db, config_) {
     const adminsDb = db.db('layer67').collection('admins');
-
+    const configDb = db.db('layer67').collection('config');
 
     const ip          = ARGV.ip       || '127.0.0.1';
-    const color       = ARGV.color;
     const port        = ARGV.port;
 
     if (!port) {
@@ -71,9 +78,14 @@ const main = function() {
       const url   = urlLib.parse(req.url, true);
       const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
+      const rsvr            = url.rsvr;
+      const requestedStack  = utils.stackForRsvr(rsvr);
+
+      var   projectId;
       var   service;
       var   serviceName;
       var   colorIndex;
+      var   color;
       var   serviceNames = [];
       return sg.__run([function(next) {
 
@@ -119,34 +131,67 @@ const main = function() {
 
       }, function(next) {
 
+        // We do not route to root
+        if (parts.length === 0)     { return sg._400(req, res); }
+        return next();
+
+      }, function(next) {
+
+        // Get the project
+        projectId = parts[0];
+
         //
         // We will route to one of these forms (the longest that has a service running.)
         //
         //  /proj/xapi/v1/color/serviceRoute/...
+        //  /proj/xapi/v1/color/...
+        //
+
+        // If there is a color in the route, use it
+        if (parts.length >= 3 && utils.theColor(parts[3])) {
+          color = utils.theColor(parts[3]);
+          if (parts.length >= 4) {
+            serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[4], colorIndex:3});
+          }
+          serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color, colorIndex:3});
+          return next();
+        }
+
+        /* otherwise */
+
+        // Find the color
+        color = argvColor;
+
+        // Look in db
+        const which = (parts[3] === 'next' ? 'nextColor' : 'mainColor')+'.'+requestedStack;
+        return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
+          if (sg.ok(err, doc)) {
+            color = utils.theColor(deref(doc, which));
+          }
+
+          return next();
+        });
+
+      }, function(next) {
+
+        //
+        // We will route to one of these forms (the longest that has a service running.)
+        //
         //  /proj/xapi/v1/serviceRoute/...
         //  /proj/xapi/v1/...
         //  /proj/...
         //
 
-        // We do not route to root
-        if (parts.length === 0)     { return sg._400(req, res); }
-
-        // See if one of the first 2 forms is running
+        // See if one of the forms is running
         if (parts.length >= 3) {
           if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
 
             // Try for the version with xapi/v1/serviceRoute
-            if (parts.length >= 4) {
-              if (color) {
-                serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[3], colorIndex:3});
-              }
+            if (parts.length >= 4 && !utils.theColor(parts[3])) {
               serviceNames.push({path:'/'+parts.slice(0, 4).join('/'), colorIndex:-1});
             }
 
             // Try for the version with xapi/v1
-            if (color) {
-              serviceNames.push({path:'/'+parts.slice(0, 2).join('/')+'/'+color+'/'+parts[2], colorIndex:2});
-            }
             serviceNames.push({path:'/'+parts.slice(0, 3).join('/'), colorIndex:-1});
           }
         }
@@ -196,7 +241,7 @@ const main = function() {
 
         // No service, just 404
         if (!isProd()) {
-          console.log('No services found for: ', serviceNames);
+          console.log('No services found for: ', _.pluck(serviceNames, 'path'));
         }
 
         return unhandled(req, res, 404);
@@ -212,7 +257,7 @@ const main = function() {
         var   useUrl  = req.url.split('/');
 
         if (colorIndex >= 0) {
-          useUrl.splice(colorIndex+1, 0, color);
+          useUrl.splice(colorIndex+1, 1, color);
         }
 
         const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${useUrl.join('/')}`);

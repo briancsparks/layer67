@@ -5,6 +5,7 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
+const utils                   = require('../../lib/utils');
 const http                    = require('http');
 const urlLib                  = require('url');
 var   MongoClient             = require('mongodb').MongoClient;
@@ -66,7 +67,7 @@ const main = function() {
         // Collect all the interesting items
         const all   = sg._extend(url.query, req.bodyJson || {});
         const rsvr  = all.rsvr;
-        const stack = stackForRsvr(rsvr);
+        const stack = utils.stackForRsvr(rsvr);
 
         projectId = projectId || all.projectId;
 
@@ -142,16 +143,5 @@ bootstrap = function(callback) {
 
 
 main();
-
-function stackForRsvr(rsvr) {
-  if (rsvr === 'hqqa' || rsvr === 'qa')           { return 'test'; }
-  if (rsvr === 'hqtest' || rsvr === 'test')       { return 'test'; }
-  if (rsvr === 'hqstg' || rsvr === 'stg')         { return 'stg';  }
-  if (rsvr === 'hqext' || rsvr === 'ext')         { return 'ext';  }
-  if (rsvr === 'hqpub' || rsvr === 'pub')         { return 'prod'; }
-  if (rsvr === 'hqprod' || rsvr === 'prod')       { return 'prod'; }
-
-  return 'prod';
-}
 
 
