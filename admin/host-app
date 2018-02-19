@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+eval "$(cli-shezargs $@)"
+
+[[ -z $pm2_name     ]] && die "Need --pm2-name="
+[[ -z $port         ]] && die "Need --port="
+[[ -z $ns           ]] && die "Need --ns="
+[[ -z $stack        ]] && die "Need --stack="
+[[ -z $color        ]] && die "Need --color="
+
+cd "${scripts_dir}/../layer67-plugins/host-app"
+pm2 start host-app.js --name ${pm2_name} --watch -- --port=${port} --namespace=${ns} --stack=${stack} --color=${color}
+
