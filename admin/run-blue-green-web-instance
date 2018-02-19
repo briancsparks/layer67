@@ -22,7 +22,7 @@ ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} 
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
 
-${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=color,Value=$color"
+${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=color,Value=$color" "Key=color,Value=${color}"
 
 # ---------- Configure nginx ----------
 
