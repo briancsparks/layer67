@@ -48,7 +48,7 @@ const main = function() {
   return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
     var   ip;
 
-    if (sg.ok(err, result, result.text)) {
+    if (sg.ok(err, result) && result.text) {
       ip = result.text;
     }
 

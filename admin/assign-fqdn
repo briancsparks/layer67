@@ -10,7 +10,9 @@ if [[ $stack == prod ]]; then
 fi
 
 instance_id="$(sshix $ip 'curl -sS http://169.254.169.254/latest/meta-data/instance-id')"
+echo "InstanceId: " $instance_id
 eip="$(ra invoke "$(fn ~/dev/ ec2Instance\.js$)" eipForFqdn --fqdn="$fqdn" | jq -r '.eip')"
+echo "eip: " $eip
 
 ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 associate-address --allocation-id=$eip --instance-id=$instance_id --private-ip-address=$ip --allow-reassociation
 ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=Name,Value=$fqdn"

@@ -2,29 +2,27 @@
 
 eval "$(cli-shezargs $@)"
 
-[[ -z $stack  ]] && die "Need --stack="
+[[ -z $stack    ]] && die "Need --stack="
 
-${scripts_dir}/launch/run-instance --stack=${stack} --tier=app "$@"
+if [[ $stack == prod ]]; then
+  assumed_acct="pub"
+fi
 
+if [[ -n ${color}      ]]; then
+  xtra=" --color=${color}"
+  xtra_tag="Key=color,Value=${color}"
+fi
+
+${scripts_dir}/launch/run-instance --stack=${stack} --tier=app ${xtra} --delay-finishing "$@"
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
+instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
+
+aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=Name,Value=${stack}-feed-instance" "Key=stack,Value=${stack}" ${xtra_tag}
 
 # ---------- Configure nginx ----------
 
 # The basic listener
 curl -sS "http://$ip:12340/root-config"
-
-
-
-# Note: This is what you would do if the internal instance were to be addressable via name through nginx
-
-#curl -sS "http://$ip:12340/server-config?fqdn=${color}-test.mobiledevassist.net&port=5781&client_certs=1&https=1"
-#curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-test.mobiledevassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
-#
-#${scripts_dir}/push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
-#${scripts_dir}/push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
-#${scripts_dir}/push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip"   || true
-
-
 
 
 # Only start the server if the caller wants
