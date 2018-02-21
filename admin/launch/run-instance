@@ -135,7 +135,18 @@ wait_for_start $ip
 
 #agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
 
+# Tell new instance its identity
+env_color="${color}"
+[[ -z ${env_color}  ]] && env_color="black"
+
 sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
+sshix $ip "local/scripts/01-bootstrap --setenv L67_COLOR ${env_color}"
+sshix $ip "local/scripts/01-bootstrap --setenv L67_TIER  ${tier}"
+
+sshix $ip "local/scripts/01-bootstrap --setenv L67_STACK ${stack}"
+if [[ ${stack} == prod ]]; then
+  sshix $ip "local/scripts/01-bootstrap --setenv NODE_ENV production"
+fi
 
 sshix $ip "cd ~/dev/layer67 && git pull"
 
