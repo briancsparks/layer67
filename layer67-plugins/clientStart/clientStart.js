@@ -67,7 +67,7 @@ const main = function() {
         // Collect all the interesting items
         const all   = sg._extend(url.query, req.bodyJson || {});
         const rsvr  = all.rsvr;
-        const stack = utils.stackForRsvr(rsvr);
+        const stack = utils.stackForRsvr(rsvr) || 'prod';
 
         projectId = projectId || all.projectId;
 

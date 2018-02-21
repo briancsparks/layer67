@@ -47,7 +47,7 @@ const unhandled               = unhandledRoutes.unhandled;
 const redisPort               = argvGet(ARGV, 'redis-port')             || 6379;
 const redisHost               = argvGet(ARGV, 'redis-host')             || 'redis';
 var   namespace               = 'layer67';
-const stack                   = ARGV.stack;
+const argvStack               = ARGV.stack;
 const argvColor               = ARGV.color;
 
 const redis                   = redisLib.createClient(redisPort, redisHost);
@@ -78,7 +78,7 @@ const main = function() {
       const url   = urlLib.parse(req.url, true);
       const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
-      const rsvr            = url.rsvr;
+      const rsvr            = url.query.rsvr;
       const requestedStack  = utils.stackForRsvr(rsvr);
 
       var   projectId;
@@ -163,7 +163,7 @@ const main = function() {
         color = argvColor;
 
         // Look in db
-        const which = (parts[3] === 'next' ? 'nextColor' : 'mainColor')+'.'+requestedStack;
+        const which = (parts[3] === 'next' ? 'nextColor' : 'mainColor')+'.'+(requestedStack || 'prod');
         return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
           if (sg.ok(err, doc)) {
             color = utils.theColor(deref(doc, which));
@@ -207,7 +207,7 @@ const main = function() {
           if (service)    { return next(); }
 
           // Call Redis to see if the service is available.
-          return getServices(serviceName_, (err, services) => {
+          return getServices(serviceName_, requestedStack, (err, services) => {
             if (!sg.ok(err, services)) { return next(); }
 
             // Are there any services available?
@@ -310,8 +310,9 @@ bootstrap = function(callback) {
 
 main();
 
-function getServices(name, callback) {
-  const root = ['service', stack, name].join(':');
+function getServices(name, stack_, callback) {
+  const stack   = stack_ || argvStack;
+  const root    = ['service', stack, name].join(':');
 
   var result = [];
   return sg.__eachll(getThreeHours(), (h, next) => {
