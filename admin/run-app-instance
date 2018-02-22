@@ -10,14 +10,13 @@ fi
 
 if [[ -n ${color}      ]]; then
   xtra=" --color=${color}"
-  xtra_tag="Key=color,Value=${color}"
 fi
 
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=app ${xtra} --delay-finishing "$@"
 ip="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].PrivateIpAddress')"
 instance_id="$(cat /tmp/run-instance-result.json | jq -r '.Instances[].InstanceId')"
 
-aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=Name,Value=${stack}-feed-instance" "Key=stack,Value=${stack}" ${xtra_tag}
+aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=Name,Value=${stack}-feed-instance"
 
 # ---------- Configure nginx ----------
 

@@ -129,15 +129,22 @@ ip_for_filename="$(echo $ip | tr '.' '-')"
 uniq_log_filename="/tmp/run-instance-result-${ip_for_filename}.json"
 cp  "/tmp/run-instance-result.json" "$uniq_log_filename"
 
+# Tell new instance its identity
+env_color="${color}"
+[[ -z ${env_color}  ]] && env_color="black"
+
+aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=tech,Value=layer67"
+
+[[ -n $ns           ]] && aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=namespace,Value=${ns}"
+[[ -n $env_color    ]] && aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=color,Value=${env_color}"
+[[ -n $tier         ]] && aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=tier,Value=${tier}"
+[[ -n $stack        ]] && aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$instance_id" --tags "Key=stack,Value=${stack}"
+
 wait_for_start $ip
 
 # ---------- Once the instance is started, finalize it to work ----------
 
 #agent_ip="$(curl 'http://169.254.169.254/latest/meta-data/local-ipv4')"
-
-# Tell new instance its identity
-env_color="${color}"
-[[ -z ${env_color}  ]] && env_color="black"
 
 sshix $ip "local/scripts/01-bootstrap --setenv NAMESPACE $ns"
 sshix $ip "local/scripts/01-bootstrap --setenv L67_COLOR ${env_color}"
