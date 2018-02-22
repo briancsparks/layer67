@@ -14,7 +14,7 @@ my_security_group_ids="$(curl -sS "http://169.254.169.254/latest/meta-data/netwo
 
 nsX="peach"
 
-instance_type="c5.xlarge"
+instance_type="c5.2xlarge"
 key_name="mario_demo"
 security_group_ids="${my_security_group_ids}"
 iam_instance_profile="Arn=arn:aws:iam::084075158741:instance-profile/${nsX}-web-instance-role"

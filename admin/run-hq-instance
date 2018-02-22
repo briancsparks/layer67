@@ -1,6 +1,9 @@
 #!/bin/bash -e
 
 stack="cluster"
+domain_name="mobiledevassist.net"
+sconfig_client=""
+sconfig_https="&http=1"
 
 eval "$(cli-shezargs $@)"
 
@@ -12,6 +15,9 @@ ns="$NAMESPACE"
 
 if [[ $stack == prod ]]; then
   assumed_acct="pub"
+  domain_name="mobilewebassist.net"
+  sconfig_client="&client_certs=1"
+  sconfig_https="&https=1"
 fi
 
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
@@ -25,10 +31,10 @@ ${scripts_dir}/aws-assumed-role "$assumed_acct" ec2 create-tags --resources "$in
 
 # Setup for the following FQDNs
 curl -sS "http://$ip:12340/root-config"
-curl -sS "http://$ip:12340/server-config?fqdn=l67console.mobilewebassist.net&port=5778&client_certs=1&https=1"
-#curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&client_certs=1&https=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.mobilewebassist.net&port=5778&http=1"
-curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=5777&https=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67console.${domain_name}&port=5778${sconfig_client}${sconfig_https}"
+#curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.${domain_name}&port=5778${sconfig_client}${sconfig_https}"
+curl -sS "http://$ip:12340/server-config?fqdn=l67xapi.${domain_name}&port=5778&http=1"
+curl -sS "http://$ip:12340/server-config?fqdn=l67hq.${domain_name}&port=5777${sconfig_https}"
 
 # ---------- Get the nginx conf files ----------
 
@@ -37,8 +43,8 @@ curl -sS "http://$ip:12340/server-config?fqdn=l67hq.mobilewebassist.net&port=577
 announce "Pushing certs to server"
 # =======================================================================
 
-# ----- l67console.mobilesebassist.net
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+# ----- l67console.mobilewebassist.net
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67console.${domain_name}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 
 push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"     || true
 push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"      || true
@@ -47,14 +53,11 @@ push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert
 
 
 # ----- l67hq.mobilewebassist.net
-curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.mobilewebassist.net.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
+curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/l67hq.${domain_name}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 
 push-cert-to-server "ssh_cert"      "$(cat /tmp/config.json | jq -r '.certfile')" "$ip"   || true
 push-cert-to-server "ssh_key"       "$(cat /tmp/config.json | jq -r '.keyfile')" "$ip"    || true
 push-cert-to-server "client_cert"   "$(cat /tmp/config.json | jq -r '.clientCert')" "$ip" || true
-
-# ---------- Once you want to assign the FQDN, it would be this ----------
-#${scripts_dir}/../assign-fqdn --fqdn=l67hq.mobilewebassist.net --ip=${ip}
 
 
 # Only start the server if the caller wants

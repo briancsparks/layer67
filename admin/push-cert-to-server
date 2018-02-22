@@ -6,12 +6,12 @@ ip="$3"
 
 [[ $fullpath == null ]] && unset fullpath
 
-printf "push-cert-to-server %-14s %-20s %-60s" "$message" "$ip" "$fullpath"
+printf "push-cert-to-server %-14s %-20s %-60s" "$message" "$ip" "$fullpath "
 
 if [[ -n $fullpath ]]; then
   ra invoke `find ~/dev -type f | egrep 'crypto-kms\.js$'` pushCertToServer --ip=$ip --fullpath=$fullpath > /tmp/push-cert-to-server.json 2> /tmp/push-cert-to-server-error
-  cat /tmp/push-cert-to-server.json | jq -r '.items[].size' || true
+  cat /tmp/push-cert-to-server.json | jq -r '.items[].size' || echo "0"
 else
-  echo ""
+  printf "0\n"
 fi
 
