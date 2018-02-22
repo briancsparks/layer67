@@ -85,6 +85,7 @@ const main = function() {
       var   service;
       var   serviceName;
       var   colorIndex;
+      var   extraOffset = 0;
       var   color;
       var   serviceNames = [];
       return sg.__run([function(next) {
@@ -159,18 +160,35 @@ const main = function() {
 
         /* otherwise */
 
-        // Find the color
-        color = argvColor;
+        // If the request has `next` or `main` in place of the color...
+        var   mainNext;
 
-        // Look in db
-        const which = (parts[3] === 'next' ? 'nextColor' : 'mainColor')+'.'+(requestedStack || 'prod');
-        return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
-          if (sg.ok(err, doc)) {
-            color = utils.theColor(deref(doc, which));
-          }
+        if (parts.length >= 3 && parts[3] in {main:true, next:true}) {
+          mainNext    = parts[3];
+          extraOffset = 0;
+        } else {
+          mainNext    = 'main';
+          extraOffset = -1;
+        }
 
-          return next();
-        });
+        if (mainNext) {
+          const which = (mainNext === 'next' ? 'nextColor' : 'mainColor')+'.'+(requestedStack || 'prod');
+          return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
+            if (!sg.ok(err, doc))    { return next(); }
+
+            // Is it a valid color?
+            if (!(color = utils.theColor(deref(doc, which)))) { return next(); }
+
+            if (parts.length >= 4) {
+              serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[4 + extraOffset], colorIndex:3});
+            }
+            serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color, colorIndex:3});
+
+            return next();
+          });
+        }
+
+        return next();
 
       }, function(next) {
 
@@ -257,7 +275,7 @@ const main = function() {
         var   useUrl  = req.url.split('/');
 
         if (colorIndex >= 0) {
-          useUrl.splice(colorIndex+1, 1, color);
+          useUrl.splice(colorIndex+1, 1+extraOffset, color);
         }
 
         const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${useUrl.join('/')}`);
