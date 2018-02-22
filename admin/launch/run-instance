@@ -104,12 +104,12 @@ octet4="$(echo $ip | cut -d'.' -f4)"
 
 security_group_ids="$(echo $security_group_ids | tr ',' ' ')"
 
-if [[ $profile == prod ]]; then
+# ---------- Fire up the new instance ----------
+
+if [[ $stack == prod ]]; then
   assumed_acct="pub"
   use_profile="--profile=prod"
 fi
-
-# ---------- Fire up the new instance ----------
 
 [[ -z $stack    ]] && die "Need --stack="
 [[ -z $tier     ]] && die "Need --tier="
