@@ -90,7 +90,16 @@ usage = function(message) {
 
 
 if (sg.callMain(ARGV, __filename)) {
-  main();
+  return main();
+} else {
+  // Being required
+  var lib = {};
+
+  lib = sg.reduce(require('./lib/redis-utils'), lib, function(m, value, key) { return sg.kv(m, key, value); });
+
+  _.each(lib, function(value, key) {
+    exports[key] = value;
+  });
 }
 
 function pluginDirs() {
