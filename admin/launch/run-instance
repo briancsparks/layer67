@@ -24,7 +24,6 @@ ndX="$NAMESPACE"
 [[ -z $nsX ]] && nsX="peach"
 acctX="$dev_acct_num"
 
-instance_type="c5.large"
 key_name="mario_demo"
 security_group_ids="sg-915eb6e6"
 user_data="file://${userdata_file}"
@@ -114,8 +113,10 @@ fi
 [[ -z $stack    ]] && die "Need --stack="
 [[ -z $tier     ]] && die "Need --tier="
 
+[[ -n $instance_type  ]] && extraRiParams="${extraRiParams} --instance-type=${instance_type}"
+
 rm -f /tmp/run-instance-result.json
-ra invoke "$(fnn ~/dev 'layer67/lib/ec2Instance\.js')" runInstances --name="peach-${stack}-${tier}" > /tmp/run-instance-result.json
+ra invoke "$(fnn ~/dev 'layer67/lib/ec2Instance\.js')" runInstances --name="peach-${stack}-${tier}" ${extraRiParams} > /tmp/run-instance-result.json
 
 # The result JSON will be one line on error: '{}'
 [[ $(cat /tmp/run-instance-result.json | jq . | wc -l) == 1 ]] && die
