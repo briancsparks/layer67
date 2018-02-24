@@ -10,6 +10,10 @@ eval "$(cli-shezargs $@)"
 curl -sS "http://$ip:12340/file/etc/nginx/nginx.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 sshix $ip "cd ~/dev/layer67/layer67-plugins/no-domain/ && pm2 start no-domain.js -- port=$(cat /tmp/config.json | jq -r '.routerPort')"
 
+if [[ $stack != prod ]]; then
+  sshix $ip "cd ~/dev/layer67/layer67-plugins/echo/ && pm2 start echo.js -- --port=5790 --color=${color} --stack=${stack}"
+fi
+
 # ----- color-test.mobilesebassist.net
 curl -sS "http://$ip:12340/file/etc/nginx/sites-enabled/${color}-l67.${domain_name}.conf" | egrep '# CONFIG_JSON ' | sed 's/^[^{[]*//g' > /tmp/config.json
 sshix $ip "cd ~/dev/layer67/layer67-plugins/xapi && pm2 start xapi-router.js --name xapi -- --stack=${stack} --port=$(cat /tmp/config.json | jq -r '.routerPort')"

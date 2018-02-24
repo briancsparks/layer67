@@ -2,8 +2,9 @@
 
 stack="cluster"
 domain_name="mobiledevassist.net"
-sconfig_client=""
-sconfig_https="&http=1"
+
+sconfig_client="&client_certs=1"
+sconfig_https="&https=1"
 
 eval "$(cli-shezargs $@)"
 
@@ -16,8 +17,6 @@ ns="$NAMESPACE"
 if [[ $stack == prod ]]; then
   assumed_acct="pub"
   domain_name="mobilewebassist.net"
-  sconfig_client="&client_certs=1"
-  sconfig_https="&https=1"
 fi
 
 ${scripts_dir}/launch/run-instance --stack=${stack} --tier=web --color=${color} "$@"
