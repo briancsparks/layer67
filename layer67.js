@@ -90,7 +90,7 @@ usage = function(message) {
 
 
 if (sg.callMain(ARGV, __filename)) {
-  return main();
+  main();
 } else {
   // Being required
   var lib = {};

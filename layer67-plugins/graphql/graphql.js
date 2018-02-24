@@ -11,9 +11,6 @@ const {
     graphqlExpress,
     graphiqlExpress
   }                           = require('apollo-server-express');
-const {
-    makeExecutableSchema
-  }                           = require('graphql-tools');
 
 const ARGV                    = sg.ARGV();
 const argvGet                 = sg.argvGet;
@@ -27,37 +24,23 @@ const ip                      = ARGV.ip       || '127.0.0.1';
 const port                    = ARGV.port     || 3000;
 const stack                   = ARGV.stack    || null;
 
-var   schema                  = {typeDefs: [], resolvers:{}};
 
-schema.typeDefs.push(`
-schema {
-  query: Query
-  mutation: Mutation
-}`);
-
-schema = require('../../lib/clientSessionGraphqlSchema').addSchema(schema);
-
-/**
- * Finally, we construct our schema (whose starting query type is the query
- * type we defined above) and export it.
- */
-//schema.typeDefs = [schema.typeDefs];
-const schema = makeExecutableSchema(schema);
-
-
+//import { schema, context } from './schemas/schema';
+import schema from './schemas/schema';
 
 // Initialize the app
 const app = express();
 
 // The GraphQL endpoint
-app.use(`/${namespace}/graphql`, bodyParser.json(), graphqlExpress({ schema }));
+//app.use(`/${namespace}/graphql`, bodyParser.json(), graphqlExpress({ schema, context }));
+app.use(`/${namespace}/graphql`, bodyParser.json(), graphqlExpress(schema));
 
 // GraphiQL, a visual editor for queries
 app.use(`/${namespace}/graphiql`, graphiqlExpress({ endpointURL: `/${namespace}/graphql` }));
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Go to http://localhost:3000/${namespace}/graphiql to run queries!`);
+  console.log(`Go to http://localhost:${port}/${namespace}/graphiql to run queries!`);
 
   tell();
   function tell() {
