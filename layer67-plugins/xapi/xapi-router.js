@@ -47,12 +47,14 @@ const unhandled               = unhandledRoutes.unhandled;
 const redisPort               = argvGet(ARGV, 'redis-port')             || 6379;
 const redisHost               = argvGet(ARGV, 'redis-host')             || 'redis';
 var   namespace               = 'layer67';
-const argvStack               = ARGV.stack;
+const argvStack               = ARGV.stack                              || process.env.LAYER67_STACK;
 const argvColor               = ARGV.color;
 
 const redis                   = redisLib.createClient(redisPort, redisHost);
 
 var   bootstrap;
+
+var   parseUrlForXapi;
 
 const main = function() {
   return bootstrap(function(err, db, config_) {
@@ -78,213 +80,172 @@ const main = function() {
       const url   = urlLib.parse(req.url, true);
       const parts = _.rest(url.pathname.toLowerCase().split('/'));
 
-      const rsvr            = url.query.rsvr;
-      const requestedStack  = utils.stackForRsvr(rsvr);
+      return parseUrlForXapi(req, function(err, parseUrlForXapiResult) {
 
-      var   projectId;
-      var   service;
-      var   serviceName;
-      var   colorIndex;
-      var   extraOffset = 0;
-      var   color;
-      var   serviceNames = [];
-      return sg.__run([function(next) {
+        var   {
+            isValid,
+            projectId,
+            apiType,
+            version,
+            color,
+            requestedColor,
+            requestedStack,
+            route0,
+            restOfUrl,
+            search }          = parseUrlForXapiResult;
 
-        // ---------- Verify user, if necessary ----------
+        if (!isValid)     { return sg._400(req, res); }
 
-        // A header of X-Client-Verify means nginx was told to check client certs
-        if (req.headers['x-client-verify']) {
-          var msg = 'verify...';
-          if (req.headers['x-client-verify'] !== 'SUCCESS') { msg+='fail'; console.error(msg); return sg._403(req, res); }
-          msg += 'SUCCESS.';
+        var   service;
+        var   serviceData;
+        var   serviceNames = [];
+        return sg.__run([function(next) {
 
-          const serverSigner   = req.headers['x-client-i-dn'];
-          const clientCryptoId = req.headers['x-client-s-dn'];
-          const email          = (utils.parseClientCert(clientCryptoId || '') || {}).CN;
+          // ---------- Verify user, if necessary ----------
 
-          //console.log(req.headers);
-          console.log(clientCryptoId);
+          // A header of X-Client-Verify means nginx was told to check client certs
+          if (req.headers['x-client-verify']) {
+            var msg = 'verify...';
+            if (req.headers['x-client-verify'] !== 'SUCCESS') { msg+='fail'; console.error(msg); return sg._403(req, res); }
+            msg += 'SUCCESS.';
 
-          if (!serverSigner || !clientCryptoId || !email) {
-            msg+='!headers';
-            console.error(msg);
-            return sg._403(req, res);
+            const serverSigner   = req.headers['x-client-i-dn'];
+            const clientCryptoId = req.headers['x-client-s-dn'];
+            const email          = (utils.parseClientCert(clientCryptoId || '') || {}).CN;
+
+            //console.log(req.headers);
+            console.log(clientCryptoId);
+
+            if (!serverSigner || !clientCryptoId || !email) {
+              msg+='!headers';
+              console.error(msg);
+              return sg._403(req, res);
+            }
+            msg=email+','+msg+',good-headers';
+
+            // Now, look up the email in our DB
+            return adminsDb.find({email:email}).toArray(function(err, result) {
+
+              if (!sg.ok(err, result)) { msg+='unknown'; console.error(msg); return sg._403(req, res); }
+              msg+=',is-in-the-db';
+
+              const role = result[0].role;
+              if (role !== 'admin') { msg+='!admin'; console.error(msg); return sg._403(req, res); }
+              msg+=',Pass.';
+              console.log(msg);
+
+              return next();
+            });
           }
-          msg=email+','+msg+',good-headers';
 
-          // Now, look up the email in our DB
-          return adminsDb.find({email:email}).toArray(function(err, result) {
-
-            if (!sg.ok(err, result)) { msg+='unknown'; console.error(msg); return sg._403(req, res); }
-            msg+=',is-in-the-db';
-
-            const role = result[0].role;
-            if (role !== 'admin') { msg+='!admin'; console.error(msg); return sg._403(req, res); }
-            msg+=',Pass.';
-            console.log(msg);
-
-            return next();
-          });
-        }
-
-        // No client cert required
-        return next();
-
-      }, function(next) {
-
-        // We do not route to root
-        if (parts.length === 0)     { return sg._400(req, res); }
-        return next();
-
-      }, function(next) {
-
-        // Get the project
-        projectId = parts[0];
-
-        //
-        // We will route to one of these forms (the longest that has a service running.)
-        //
-        //  /proj/xapi/v1/color/serviceRoute/...
-        //  /proj/xapi/v1/color/...
-        //
-
-        // If there is a color in the route, use it
-        if (parts.length >= 3 && utils.theColor(parts[3])) {
-          color = utils.theColor(parts[3]);
-          if (parts.length >= 4) {
-            serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[4], colorIndex:3});
-          }
-          serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color, colorIndex:3});
+          // No client cert required
           return next();
-        }
 
-        /* otherwise */
+        }, function(next) {
 
-        // If the request has `next` or `main` in place of the color...
-        var   mainNext;
+          // We do not route to root
+          if (parts.length === 0)     { return sg._400(req, res); }
+          return next();
 
-        if (parts.length >= 3 && parts[3] in {main:true, next:true}) {
-          mainNext    = parts[3];
-          extraOffset = 0;
-        } else {
-          mainNext    = 'main';
-          extraOffset = -1;
-        }
+        }, function(next) {
 
-        if (mainNext) {
-          const which = (mainNext === 'next' ? 'nextColor' : 'mainColor')+'.'+(requestedStack || 'prod');
-          return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
-            if (!sg.ok(err, doc))    { return next(); }
-
-            // Is it a valid color?
-            if (!(color = utils.theColor(deref(doc, which)))) { return next(); }
-
-            if (parts.length >= 4) {
-              serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color+'/'+parts[4 + extraOffset], colorIndex:3});
+          if (route0) {
+            serviceNames.push({path:'/'+[projectId, apiType, version, color, route0].join('/'), rest: restOfUrl, search});
+            serviceNames.push({path:'/'+[projectId, apiType, version, color].join('/'), rest: _.compact([route0, restOfUrl]).join('/'), search});
+            if (!apiType && !version) {
+              serviceNames.push({path:'/'+[projectId, color, route0].join('/'), rest: restOfUrl, search});
             }
-            serviceNames.push({path:'/'+parts.slice(0, 3).join('/')+'/'+color, colorIndex:3});
-
-            return next();
-          });
-        }
-
-        return next();
-
-      }, function(next) {
-
-        //
-        // We will route to one of these forms (the longest that has a service running.)
-        //
-        //  /proj/xapi/v1/serviceRoute/...
-        //  /proj/xapi/v1/...
-        //  /proj/...
-        //
-
-        // See if one of the forms is running
-        if (parts.length >= 3) {
-          if (parts[1].match(/(xapi|api)/) && parts[2].match(/v[0-9.]+/)) {
-
-            // Try for the version with xapi/v1/serviceRoute
-            if (parts.length >= 4 && !utils.theColor(parts[3])) {
-              serviceNames.push({path:'/'+parts.slice(0, 4).join('/'), colorIndex:-1});
-            }
-
-            // Try for the version with xapi/v1
-            serviceNames.push({path:'/'+parts.slice(0, 3).join('/'), colorIndex:-1});
+            serviceNames.push({path:'/'+[projectId, color].join('/'), rest: _.compact([route0, restOfUrl]).join('/'), search});
+          } else {
+            serviceNames.push({path:'/'+[projectId, apiType, version, color].join('/'), rest: restOfUrl, search});
+            serviceNames.push({path:'/'+[projectId, color].join('/'), rest: restOfUrl, search});
           }
-        }
 
-        // If we do not find the specific service, see if we can find the project
-        serviceNames.push({path:'/'+parts[0], colorIndex:-1});
-
-        // Now, simply loop over the forms, and see if anyone has registered for any of them
-        return sg.__each(serviceNames, function(serviceNameData, next) {
-          const serviceName_ = serviceNameData.path;
-
-          // Once we find a service, do not need to keep looking
-          if (service)    { return next(); }
-
-          // Call Redis to see if the service is available.
-          return getServices(serviceName_, requestedStack, (err, services) => {
-            if (!sg.ok(err, services)) { return next(); }
-
-            // Are there any services available?
-            if (services.length === 0) { return next(); }
-
-            // If so, pick one
-            if (++serviceIndex >= services.length) {
-              serviceIndex -= services.length;
-              if (serviceIndex >= services.length) {
-                serviceIndex = 0;
+          // Only route to non-color services if the user did not specify color
+          if (!requestedColor) {
+            if (route0) {
+              serviceNames.push({path:'/'+[projectId, apiType, version, route0].join('/'), rest: restOfUrl, search});
+              serviceNames.push({path:'/'+[projectId, apiType, version].join('/'), rest: _.compact([route0, restOfUrl]).join('/'), search});
+              if (!apiType && !version) {
+                serviceNames.push({path:'/'+[projectId, route0].join('/'), rest: restOfUrl, search});
               }
+            } else {
+              serviceNames.push({path:'/'+[projectId, apiType, version].join('/'), rest: restOfUrl, search});
             }
+          }
 
-            // We found a service
-            service     = services[serviceIndex++];
-            serviceName = serviceName_;
-            colorIndex  = serviceNameData.colorIndex;
+          // Always try the root project
+          serviceNames.push({path:'/'+[projectId].join('/'), rest: _.compact([route0, restOfUrl]).join('/'), search});
+          //serviceNames.push({path:'/'+[projectId].join('/'), rest: restOfUrl, search});
 
-            return next();
-          });
-        }, next);
+          return next();
 
-      }, function(next) {
+        }, function(next) {
 
-        //
-        // This function will respond with a not-found, unless we found a service
-        //
+          // Now, simply loop over the forms, and see if anyone has registered for any of them
+          return sg.__each(serviceNames, function(serviceNameData, next) {
+            const serviceName_ = serviceNameData.path;
 
-        // Move on, if we have a service
-        if (service) { return next(); }
+            // Once we find a service, do not need to keep looking
+            if (service)    { return next(); }
 
-        // No service, just 404
-        if (!isProd()) {
-          console.log('No services found for: ', _.pluck(serviceNames, 'path'));
-        }
+            // Call Redis to see if the service is available.
+            return getServices(serviceName_, requestedStack, (err, services) => {
+              if (!sg.ok(err, services)) { return next(); }
 
-        return unhandled(req, res, 404);
+              // Are there any services available?
+              if (services.length === 0) { return next(); }
 
-      }], function done() {
+              // If so, pick one
+              if (++serviceIndex >= services.length) {
+                serviceIndex -= services.length;
+                if (serviceIndex >= services.length) {
+                  serviceIndex = 0;
+                }
+              }
 
-        // Got one -- Magic nginx potion
-        // location ~* ^/rpxi/GET/(.*) {...}
-        // location ~* ^/rpxissl/GET/(.*) {...}
+              // We found a service
+              service     = services[serviceIndex++];
+              serviceData = serviceNameData;
 
-        // TODO: if we are rpxi-ing ssl, use ssl version
-        const svc     = service.replace(/(http|https):[/][/]/i, '');
-        var   useUrl  = req.url.split('/');
+              return next();
+            });
+          }, next);
 
-        if (colorIndex >= 0) {
-          useUrl.splice(colorIndex+1, 1+extraOffset, color);
-        }
+        }, function(next) {
 
-        const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${useUrl.join('/')}`);
+          //
+          // This function will respond with a not-found, unless we found a service
+          //
 
-        console.log('xapi: '+url.pathname+' --> '+redir);
+          // Move on, if we have a service
+          if (service) { return next(); }
 
-        res.statusCode = 200;
-        res.setHeader('X-Accel-Redirect', redir);
-        res.end();
+          // No service, just 404
+          if (!isProd()) {
+            console.log('No services found for: ', requestedStack+' stack', _.map(serviceNames, function(serviceName) { return _.pick(serviceName, 'path', 'rest'); }));
+          }
+
+          return unhandled(req, res, 404);
+
+        }], function done() {
+
+          // Got one -- Magic nginx potion
+          // location ~* ^/rpxi/GET/(.*) {...}
+          // location ~* ^/rpxissl/GET/(.*) {...}
+
+          // TODO: if we are rpxi-ing ssl, use ssl version
+          const svc     = service.replace(/(http|https):[/][/]/i, '');
+          const useUrl  = _.compact([serviceData.path, serviceData.rest]).join('/')+serviceData.search;
+
+          const redir   = sg.normlz(`/rpxi/${req.method.toUpperCase()}/${svc}/${useUrl}`);
+
+          console.log('xapi: '+url.pathname+' --> '+redir);
+
+          res.statusCode = 200;
+          res.setHeader('X-Accel-Redirect', redir);
+          res.end();
+        });
       });
 
     });
@@ -305,6 +266,11 @@ const maintainTime = function() {
 };
 maintainTime();
 
+const mainOrNext  = {
+  main    : 'mainColor',
+  next    : 'nextColor'
+};
+
 bootstrap = function(callback) {
   const dbAddress = process.env.SERVERASSIST_DB_IP;
   var   dbUrl     = 'mongodb://10.12.21.229:27017/'+namespace;
@@ -321,6 +287,83 @@ bootstrap = function(callback) {
       return next();
     });
 
+  }, function(next) {
+
+    const configDb = db.db('layer67').collection('config');
+
+    parseUrlForXapi = function(req, callback) {
+      const url   = urlLib.parse(req.url, true);
+      const parts = _.rest(url.pathname.toLowerCase().split('/'));
+
+      var   projectId, apiType, version, color, route0, restOfUrl = null, search;
+      var   requestedColor, requestedStack;
+
+      var   result = function(isValid_) {
+        const isValid = sg.isnt(isValid_) || isValid_;
+
+        if (restOfUrl === null) {
+          restOfUrl = parts.join('/');
+        }
+
+        search    = url.search || '';
+
+        return sg.__run([function(next) {
+          if (!(color in mainOrNext)) { return next(); }
+
+          const which = [mainOrNext[color], requestedStack || 'prod'].join('.');
+          return configDb.find({projectId, [which] : {$exists:true}}).next(function(err, doc) {
+            color = utils.theColor(deref(doc, which));
+            return next();
+          });
+
+        }], function() {
+
+          if (url.query.log) {
+            console.log(req.url);
+            console.log(`RouteForXapi(${isValid}): ${projectId || '-'} / [${apiType || '-'}/${version || '-'}] / (color:${color || '-'},stack:${requestedStack || '-'}) / r0:${route0 || '-'} :: rest:${restOfUrl}`);
+          }
+          return callback(null, {projectId, apiType, version, color, requestedColor, requestedStack, route0, restOfUrl, search, isValid});
+        });
+      };
+
+      color           = 'main';
+      requestedStack  = utils.stackForRsvr(url.query.rsvr) || argvStack;
+
+      // Get projectId
+      projectId   = parts.shift();
+
+      // Is it only the projectId?
+      if (parts.length === 0)   { return result(); }
+
+      // If next isnt `api` or `xapi`, this is the end of what we know about the route
+      if (!parts[0].match(/(xapi|api)/)) {
+        route0 = parts.shift();
+        return result();
+      }
+
+      // Get api or xapi
+      apiType = parts.shift();
+
+      // If the next isnt the version, this is a parse error
+      if (!(_.first(parts) || '').match(/^v[0-9]+/)) {
+        return result(false);
+      }
+
+      version = parts.shift();
+
+      var nextPart = _.first(parts) || '';
+      if (utils.theColor(nextPart)) {
+        requestedColor = color = parts.shift();
+      } else if (nextPart in mainOrNext) {
+        requestedColor = color = parts.shift();
+      }
+
+      route0  = parts.shift();
+
+      return result();
+    };
+    return next();
+
   }], function done() {
     return callback(null, db, config);
   });
@@ -328,8 +371,7 @@ bootstrap = function(callback) {
 
 main();
 
-function getServices(name, stack_, callback) {
-  const stack   = stack_ || argvStack;
+function getServices(name, stack, callback) {
   const root    = ['service', stack, name].join(':');
 
   var result = [];
