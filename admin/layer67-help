@@ -6,8 +6,11 @@ color="teal"
 stack="test"
 ip="10.13.8.20"
 prod_ip="10.12.8.20"
+domain_name="mobilewebassist.net"
 
 eval "$(cli-shezargs $@)"
+
+[[ $domain == dev ]] && domain_name="mobiledevassist.net"
 
 #echo "curl 'http://l67hq.mobilewebassist.net/$prj/clientStart' "
 
@@ -20,6 +23,7 @@ You can set:
   \$stack
   \$ip
   \$prod_ip
+  \$domain
 
 -----------------------------------------------
 Starting Servers:
@@ -57,15 +61,15 @@ Interaction:
 -----------------------------------------------
 
 #          ---- test /clientStart
-curl -sS 'http://l67hq.mobilewebassist.net/$prj/clientStart' | jq '.'
-curl -sS 'http://l67hq.mobilewebassist.net/$prj/clientStart?rsvr=hqqa' | jq '.'
+curl -sS 'http://l67hq.${domain_name}/$prj/clientStart' | jq '.'
+curl -sS 'http://l67hq.${domain_name}/$prj/clientStart?rsvr=hqqa' | jq '.'
 
 #          ---- test /echo (using sacurl uses client certs)
-curl -sS 'http://l67xapi.mobilewebassist.net/echo/api/v1/${color}/foobar' | jq '.'
-sacurl -sS 'https://l67console.mobilewebassist.net/echo/api/v1/${color}/foobar' | jq '.'
+curl -sS 'http://l67xapi.${domain_name}/echo/api/v1/${color}/foobar' | jq '.'
+sacurl -sS 'https://l67console.${domain_name}/echo/api/v1/${color}/foobar' | jq '.'
 
 #          ---- Listen for a data feed
-sacurl -sS 'https://l67console.mobilewebassist.net/ntl/xapi/v1/${color}/feed?clientId=asdf&watch=bsdf&expectJson=1' | jq '.'
+sacurl -sS 'https://l67console.${domain_name}/ntl/xapi/v1/${color}/feed?clientId=asdf&watch=bsdf&expectJson=1' | jq '.'
 
 #          ---- Send data to a data feed
 curl -sS "http://${web_color}-l67.mobiledevassist.net/ntl/api/v1/${color}/ingest?sessionId=bsdf-12345678" -d '{"payload":[{"a":42}]}' -H 'application/json'
@@ -74,8 +78,8 @@ curl -sS "http://${web_color}-l67.mobiledevassist.net/ntl/api/v1/${color}/ingest
 redis-cli LPUSH river:feed:asdf '{"payload":[{"a":42}]}'
 
 #          ---- Download a sessions telemetry data
-sacurl -sS "https://l67console.mobilewebassist.net/ntl/xapi/v1/${color}/download?sessionId=bsdf-12345678"
-sacurl -sS "https://l67console.mobilewebassist.net/ntl/xapi/v1/${color}/download?sessionId=A00CIOMLvczYMoUcdf0Vhy6SDuzlvwgWlXsqiu70vIOVttuC10gx0SojgN8faUHC-20180217015434292"
+sacurl -sS "https://l67console.${domain_name}/ntl/xapi/v1/${color}/download?sessionId=bsdf-12345678"
+sacurl -sS "https://l67console.${domain_name}/ntl/xapi/v1/${color}/download?sessionId=A00CIOMLvczYMoUcdf0Vhy6SDuzlvwgWlXsqiu70vIOVttuC10gx0SojgN8faUHC-20180217015434292"
 
 #          ---- Switch web-tier to color
 ra invoke "\$(find ~/dev -type f | egrep lib/cluster-db\.js$)" updateProject --project-id=${prj} --upstream=${color}-l67 --telemetry=${color}-l67 --attrstream=${color}-l67
