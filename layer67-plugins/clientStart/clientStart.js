@@ -32,7 +32,6 @@ const main = function() {
 
   return bootstrap(function(err, db, config_) {
     const configDb  = db.db('layer67').collection('config');
-    const clientsDb = db.db('layer67').collection('clients');
 
     const server = http.createServer(function(req, res) {
 
@@ -47,8 +46,9 @@ const main = function() {
       req.setTimeout(0);
       res.setTimeout(0);
 
-      var msg           = '';
-      var projectId;
+      const now         = new Date();
+      var   msg           = '';
+      var   projectId, sessionId, clientId;
 
       if (req.headers.host) {
         msg += req.headers.host;
@@ -69,15 +69,27 @@ const main = function() {
         const rsvr  = all.rsvr;
         const stack = utils.stackForRsvr(rsvr) || 'prod';
 
-        projectId = projectId || all.projectId;
+        projectId = projectId || all.projectId || all.project;
+
+        sessionId = all.sessionId || all.session || sessionId;
+        clientId  = all.clientId  || all.client  || clientId;
+
+        if (!clientId && sessionId.match(/^[a-z0-9_]+-[0-9]+/i)) {
+          clientId = _.first(sessionId.split('-'));
+        }
+        msg += ', s:'+sessionId+', c:'+clientId;
+        msg += ', projectId:'+projectId;
+
+        const clientsDb   = projectId ? db.db(projectId).collection('clients')  : null;
+        const sessionsDb  = projectId ? db.db(projectId).collection('sessions') : null;
 
         return sg.__run2([function(next, last, abort) {
+          if (!projectId)     { return next(); }
+
           const query = {
             projectId,
             upstream: {$exists:true}
           };
-
-          msg += ', projectId:'+projectId;
 
           return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
             if (!sg.ok(err, items)) { return abort(500, 'find project fail'); }
@@ -88,6 +100,48 @@ const main = function() {
 
               return nextItem();
             }, next);
+          });
+
+        }, function(next, last, abort) {
+          if (!sessionsDb || !sessionId)     { return next(); }
+
+          // ----------- Save session ----------
+          const updates = {
+            $set: {
+              sessionId,
+              mtime       : now
+            },
+            $setOnInsert: {
+              ctime       : now
+            }
+          };
+
+          setOnn(updates, '$set.clientId', clientId);
+
+          return sessionsDb.findOneAndUpdate({sessionId}, updates, {upsert:true}, function(err, receipt) {
+            if (err) { console.error('session', err, receipt) };
+            return next();
+          });
+
+        }, function(next, last, abort) {
+          if (!clientsDb || !clientId)     { return next(); }
+
+          // ----------- Save client ----------
+          const updates = {
+            $set: {
+              clientId,
+              mtime       : now
+            },
+            $setOnInsert: {
+              ctime       : now
+            }
+          };
+
+          setOnn(updates, '$set.sessionId', sessionId);
+
+          return clientsDb.findOneAndUpdate({clientId}, updates, {upsert:true}, function(err, receipt) {
+            if (err) { console.log('clients', err, receipt); }
+            return next();
           });
 
         }], function done() {
