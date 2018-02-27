@@ -66,6 +66,8 @@ const main = function() {
       return sg.getBody(req, function(err) {
         if (err) { console.error(msg); return unhandled(req, res); }
 
+        var   who;
+
         // Collect all the interesting items
         const all   = sg._extend(url.query, req.bodyJson || {});
         const rsvr  = all.rsvr;
@@ -79,13 +81,18 @@ const main = function() {
         if (!clientId && sessionId.match(/^[a-z0-9_]+-[0-9]+/i)) {
           clientId = _.first(sessionId.split('-'));
         }
-        msg += ', s:'+sessionId+', c:'+clientId;
-        msg += ', projectId:'+projectId;
+        who =  clientId || sessionId;
 
         const clientsDb   = projectId ? db.db(projectId).collection('clients')  : null;
         const sessionsDb  = projectId ? db.db(projectId).collection('sessions') : null;
 
         return sg.__run2([function(next, last, abort) {
+
+          //
+          //  Get the domain name of the endpoint from the layer67 config.
+          //
+          //  Since layer67 controls the web-tier, we first get the config it uses.
+          //
 
           const query = {
             projectId : 'l67',
@@ -106,6 +113,10 @@ const main = function() {
         }, function(next, last, abort) {
           if (!projectId)     { return next(); }
 
+          //
+          //  Get the config from the requested project
+          //
+
           const query = {
             projectId,
             mainColor: {$exists:true}
@@ -113,9 +124,11 @@ const main = function() {
 
           return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
             if (!sg.ok(err, items)) { console.error('find', query, err); return next(); }
+
             return sg.__each(items, function(item, nextItem) {
               result.upstream         = (item.upstream && item.upstream[stack]) || result.upstream;
 
+              // Translate 'upstream' into the actual fqdn
               item.upstreams[stack]   = sg.reduce(item.upstreams[stack], {}, function(m, value, key) {
                 if (value === 'upstream') {
                   return sg.kv(m, key, result.upstream);
@@ -148,12 +161,22 @@ const main = function() {
           var updates = {};
 
           setOnn(updates, '$set.sessionId', sessionId);
+          setOnn(updates, '$set.email',     deref(all, 'email'));
+          setOnn(updates, '$set.username',  deref(all, 'username'));
+
+          who = deref(all, 'username') || deref(all, 'email') || deref(all, 'description') || who;
+
           return upsertOne(clientsDb, {clientId}, updates, {}, function(err, receipt) {
             if (err) { console.error('client', {clientId, err, receipt}); }
+            else if (receipt) {
+              who = deref(receipt, 'value.username') || deref(receipt, 'value.email') || deref(receipt, 'value.description') || who;
+            }
+
             return next();
           });
 
         }], function done() {
+          msg += `(${who})`;
           if (result.upstream) {
             msg += ` --> |${result.upstream}|`;
           }
