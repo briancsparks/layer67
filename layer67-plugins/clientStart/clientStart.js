@@ -8,6 +8,7 @@ const unhandledRoutes         = require('../../lib/unhandled-routes');
 const utils                   = require('../../lib/utils');
 const http                    = require('http');
 const urlLib                  = require('url');
+const dbUtil                  = require('../../lib/db');
 var   MongoClient             = require('mongodb').MongoClient;
 
 const ARGV                    = sg.ARGV();
@@ -16,8 +17,9 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 const unhandled               = unhandledRoutes.unhandled;
-var   namespace               = 'layer67';
+const upsertOne               = dbUtil.upsertOne;
 
+var   namespace               = 'layer67';
 var   bootstrap;
 
 const main = function() {
@@ -84,19 +86,43 @@ const main = function() {
         const sessionsDb  = projectId ? db.db(projectId).collection('sessions') : null;
 
         return sg.__run2([function(next, last, abort) {
+
+          const query = {
+            projectId : 'l67',
+            upstream  : {$exists:true}
+          };
+
+          return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
+            if (!sg.ok(err, items)) { console.error('find', query, err); return next(); }
+
+            return sg.__each(items, function(item, nextItem) {
+              result.upstream   = item.upstream[stack] || result.upstream;
+              result.upstreams  = sg._extend(result.upstreams, (item.upstreams && item.upstreams[stack]) || {});
+
+              return nextItem();
+            }, next);
+          });
+
+        }, function(next, last, abort) {
           if (!projectId)     { return next(); }
 
           const query = {
             projectId,
-            upstream: {$exists:true}
+            mainColor: {$exists:true}
           };
 
           return configDb.find(query, {projection:{_id:0}}).toArray(function(err, items) {
-            if (!sg.ok(err, items)) { return abort(500, 'find project fail'); }
-
+            if (!sg.ok(err, items)) { console.error('find', query, err); return next(); }
             return sg.__each(items, function(item, nextItem) {
-              result.upstream   = item.upstream[stack] || result.upstream;
-              result.upstreams  = sg._extend(result.upstreams, item.upstreams[stack]);
+              result.upstream         = (item.upstream && item.upstream[stack]) || result.upstream;
+
+              item.upstreams[stack]   = sg.reduce(item.upstreams[stack], {}, function(m, value, key) {
+                if (value === 'upstream') {
+                  return sg.kv(m, key, result.upstream);
+                }
+                return sg.kv(m, key, value);
+              });
+              result.upstreams  = sg._extend(result.upstreams, (item.upstreams && item.upstreams[stack]) || {});
 
               return nextItem();
             }, next);
@@ -106,20 +132,12 @@ const main = function() {
           if (!sessionsDb || !sessionId)     { return next(); }
 
           // ----------- Save session ----------
-          const updates = {
-            $set: {
-              sessionId,
-              mtime       : now
-            },
-            $setOnInsert: {
-              ctime       : now
-            }
-          };
+          var updates = {};
 
           setOnn(updates, '$set.clientId', clientId);
 
-          return sessionsDb.findOneAndUpdate({sessionId}, updates, {upsert:true}, function(err, receipt) {
-            if (err) { console.error('session', err, receipt) };
+          return upsertOne(sessionsDb, {sessionId}, updates, {}, function(err, receipt) {
+            if (err) { console.error('session', {sessionId, err, receipt}); }
             return next();
           });
 
@@ -127,20 +145,11 @@ const main = function() {
           if (!clientsDb || !clientId)     { return next(); }
 
           // ----------- Save client ----------
-          const updates = {
-            $set: {
-              clientId,
-              mtime       : now
-            },
-            $setOnInsert: {
-              ctime       : now
-            }
-          };
+          var updates = {};
 
           setOnn(updates, '$set.sessionId', sessionId);
-
-          return clientsDb.findOneAndUpdate({clientId}, updates, {upsert:true}, function(err, receipt) {
-            if (err) { console.log('clients', err, receipt); }
+          return upsertOne(clientsDb, {clientId}, updates, {}, function(err, receipt) {
+            if (err) { console.error('client', {clientId, err, receipt}); }
             return next();
           });
 
