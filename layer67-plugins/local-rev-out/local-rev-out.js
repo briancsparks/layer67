@@ -31,8 +31,8 @@ const main = function(callback) {
   const server = http.createServer(function(req, res) {
 
     console.log(req.url);
-    console.log(req.headers);
-    console.log(req.connection.remoteAddress);
+    //console.log(req.headers);
+    //console.log(req.connection.remoteAddress);
 
     // We are a long-poll server
     req.setTimeout(0);

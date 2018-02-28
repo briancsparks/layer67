@@ -23,30 +23,15 @@ const main = function() {
 
   const server = http.createServer(function(req, res) {
 
-    // We are a long-poll server
-    //req.setTimeout(0);
-    //res.setTimeout(0);
+    console.log('unknown-host: ', req.headers.host || 'no-host', req.url);
+    console.log(req.headers);
+    console.log(req.connection.remoteAddress);
 
-    console.log('unknown-host: ', req.url, req.headers);
-
-    return sg._400(req, res, {error: 'unknown-host'});
+    return sg._400(req, res);
   });
 
-  return request.get('http://169.254.169.254/latest/meta-data/local-ipv4').end((err, result) => {
-    //if (sg.ok(err, result) &&  result.text) { ip = result.text; }
-
-    return server.listen(port, ip, function() {
-      console.log(`Listening on ${ip}:${port}`);
-
-//      tell();
-//      function tell() {
-//        setTimeout(tell, 15 * 1000);
-//        redisUtils.tellService('/echo', `http://${ip}:${port}`, 30000, function(err) {
-//          redisUtils.tellService('/echo/xapi/v1', `http://${ip}:${port}`, 30000, function(err) {
-//          });
-//        });
-//      };
-    });
+  return server.listen(port, ip, function() {
+    console.log(`Listening on ${ip}:${port}`);
   });
 };
 
