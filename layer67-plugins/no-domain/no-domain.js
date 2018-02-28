@@ -5,7 +5,6 @@
 const sg                      = require('sgsg');
 const _                       = sg._;
 const unhandledRoutes         = require('../../lib/unhandled-routes');
-const redisUtils              = require('../../lib/redis-utils');
 const http                    = require('http');
 const request                 = sg.extlibs.superagent;
 
