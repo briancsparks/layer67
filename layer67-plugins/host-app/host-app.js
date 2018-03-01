@@ -30,6 +30,7 @@ const argvExtract             = sg.argvExtract;
 const setOnn                  = sg.setOnn;
 const deref                   = sg.deref;
 
+const route                   = argvGet(ARGV, 'route');
 const namespace               = argvGet(ARGV, 'namespace,ns');
 const port                    = ARGV.port;
 const stack                   = ARGV.stack;
@@ -37,7 +38,6 @@ const color                   = ARGV.color;
 const argvIp                  = ARGV.ip;
 
 var   bootstrap;
-
 const main = function(callback) {
 
   var db;
@@ -67,12 +67,12 @@ const main = function(callback) {
         process.exit(2);
       }
 
-      console.log(`${namespace} Listening on ${ip}:${port}`);
+      console.log(`${namespace} Listening on ${ip}:${port}/${route || namespace}`);
 
       tell();
       function tell() {
         setTimeout(tell, 15 * 1000);
-        redisUtils.tellStackService(`/${namespace}`, `http://${ip}:${port}`, 30000, stack, function(err) {
+        redisUtils.tellStackService(`/${route || namespace}`, `http://${ip}:${port}`, 30000, stack, function(err) {
         });
       };
     });
