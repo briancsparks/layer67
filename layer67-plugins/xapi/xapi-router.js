@@ -302,7 +302,13 @@ bootstrap = function(callback) {
         const isValid = sg.isnt(isValid_) || isValid_;
 
         if (restOfUrl === null) {
-          restOfUrl = parts.join('/');
+          // When parts is [''], a simple join does not work. In this scenario, restOfUrl should
+          // end up as '/', but it just ends up ''
+          if (parts.length === 1 && parts[0] === '') {
+            restOfUrl = '/';
+          } else {
+            restOfUrl = parts.join('/');
+          }
         }
 
         search    = url.search || '';
