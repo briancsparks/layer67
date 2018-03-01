@@ -81,7 +81,7 @@ const main = function() {
         sessionId = all.sessionId || all.session || sessionId;
         clientId  = all.clientId  || all.client  || clientId;
 
-        if (!clientId && sessionId.match(/^[a-z0-9_]+-[0-9]+/i)) {
+        if (!clientId && sessionId && sessionId.match(/^[a-z0-9_]+-[0-9]+/i)) {
           clientId = _.first(sessionId.split('-'));
         }
         who =  clientId || sessionId;
