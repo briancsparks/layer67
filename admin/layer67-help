@@ -26,6 +26,13 @@ You can set:
   \$domain
 
 -----------------------------------------------
+Building Servers:
+-----------------------------------------------
+
+time build-instance
+time build-instance --skip-ami --skip-nginx --skip-basic
+
+-----------------------------------------------
 Starting Servers:
 -----------------------------------------------
   --pause
