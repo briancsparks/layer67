@@ -70,6 +70,9 @@ const main = function() {
 
         // Collect all the interesting items
         const all   = sg._extend(url.query, req.bodyJson || {});
+
+        //console.log('/clientStart', {all, url:req.url, query: url.query, body:req.bodyJson});
+
         const rsvr  = all.rsvr;
         const stack = utils.stackForRsvr(rsvr) || 'prod';
 
@@ -160,16 +163,23 @@ const main = function() {
           // ----------- Save client ----------
           var updates = {};
 
-          setOnn(updates, '$set.sessionId', sessionId);
-          setOnn(updates, '$set.email',     deref(all, 'email'));
-          setOnn(updates, '$set.username',  deref(all, 'username'));
+          const username = deref(all, 'username');
+          var   email    = deref(all, 'email');
 
-          who = deref(all, 'username') || deref(all, 'email') || deref(all, 'description') || who;
+          if (!email && username && username.match(/^.*@.+[.][a-z0-9_]+$/i)) {
+            email = username;
+          }
+
+          setOnn(updates, '$set.sessionId', sessionId);
+          setOnn(updates, '$set.email',     email);
+          setOnn(updates, '$set.username',  username);
+
+          who = deref(all, 'description') || deref(all, 'username') || deref(all, 'email') || who;
 
           return upsertOne(clientsDb, {clientId}, updates, {}, function(err, receipt) {
             if (err) { console.error('client', {clientId, err, receipt}); }
             else if (receipt) {
-              who = deref(receipt, 'value.username') || deref(receipt, 'value.email') || deref(receipt, 'value.description') || who;
+              who = deref(receipt, 'value.description') || deref(receipt, 'value.username') || deref(receipt, 'value.email') || who;
             }
 
             return next();
