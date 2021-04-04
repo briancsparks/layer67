@@ -4,7 +4,7 @@
   "author": "Brian C Sparks",
   "license": "MIT",
   "dependencies": {
-    "mongodb": "^3.0.1",
+    "mongodb": "^3.1.13",
     "redis": "^2.8.0",
     "sgsg": "^0.9.49"
   }
