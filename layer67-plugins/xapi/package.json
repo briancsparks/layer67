@@ -5,7 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "mongodb": "^3.0.1",
-    "redis": "^2.8.0",
+    "redis": "^3.1.1",
     "sgsg": "^0.9.49"
   }
 }
