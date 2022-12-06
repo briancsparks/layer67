@@ -6,6 +6,6 @@
   "dependencies": {
     "mongodb": "^3.0.1",
     "redis": "^2.8.0",
-    "sgsg": "^0.9.49"
+    "sgsg": "^0.9.56"
   }
 }
