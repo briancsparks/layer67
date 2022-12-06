@@ -4,6 +4,6 @@
   "author": "Brian C Sparks",
   "license": "MIT",
   "dependencies": {
-    "sgsg": "^0.9.49"
+    "sgsg": "^0.9.56"
   }
 }
